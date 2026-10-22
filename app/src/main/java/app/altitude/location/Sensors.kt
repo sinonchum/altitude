@@ -1,7 +1,10 @@
 package app.altitude.location
 
 import android.annotation.SuppressLint
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
@@ -11,9 +14,13 @@ import android.location.LocationListener
 import android.location.LocationManager
 import android.os.Build
 import android.os.Looper
+import androidx.core.content.ContextCompat
 import app.altitude.domain.GnssSample
+import app.altitude.domain.LocationFeed
+import app.altitude.domain.activeLocationFeeds
 import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
+import com.google.android.gms.location.Granularity
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
@@ -43,55 +50,77 @@ fun pressureHpa(context: Context): Flow<Double> = callbackFlow {
 }
 
 class GnssRepository(private val context: Context) {
+    /**
+     * Satellite updates are registered whenever precise location is granted.
+     * Fused location is added beside them, never instead of them: constructing the
+     * Play Services client used to count as success and skip [LocationManager.GPS_PROVIDER],
+     * so phones where fused location never delivers (common without working Google
+     * services) never asked the GPS chip for a fix.
+     */
     @SuppressLint("MissingPermission")
-    fun fixes(): Flow<GnssSample> = callbackFlow {
-        val fused = if (playServicesAvailable(context)) startFused() else false
-        if (!fused) startPlatform()
-        awaitClose { /* listeners are removed by invokeOnClose */ }
+    fun fixes(precise: Boolean): Flow<GnssSample> = callbackFlow {
+        val feeds = activeLocationFeeds(playServicesAvailable(context), precise)
+        val manager = context.getSystemService(LocationManager::class.java)
+        val listener = LocationListener { location ->
+            trySend(location.toGnssSample())
+        }
+        if (manager != null) {
+            if (LocationFeed.SATELLITE in feeds) {
+                requestProvider(manager, LocationManager.GPS_PROVIDER, listener)
+            }
+            if (LocationFeed.NETWORK in feeds) {
+                requestProvider(manager, LocationManager.NETWORK_PROVIDER, listener)
+            }
+        }
+        val stopFused = if (LocationFeed.FUSED in feeds) startFused(precise) else null
+        awaitClose {
+            if (manager != null) runCatching { manager.removeUpdates(listener) }
+            stopFused?.invoke()
+        }
     }
 
     @SuppressLint("MissingPermission")
-    private fun kotlinx.coroutines.channels.ProducerScope<GnssSample>.startFused(): Boolean {
+    private fun requestProvider(
+        manager: LocationManager,
+        provider: String,
+        listener: LocationListener,
+    ) {
+        if (!manager.allProviders.contains(provider)) return
+        runCatching { manager.getLastKnownLocation(provider) }
+            .getOrNull()
+            ?.let(listener::onLocationChanged)
+        val enabled = runCatching { manager.isProviderEnabled(provider) }.getOrDefault(false)
+        if (!enabled) return
+        runCatching {
+            manager.requestLocationUpdates(provider, 1_000L, 0f, listener, Looper.getMainLooper())
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun kotlinx.coroutines.channels.ProducerScope<GnssSample>.startFused(precise: Boolean): (() -> Unit)? {
         return try {
             val client = LocationServices.getFusedLocationProviderClient(context)
-            val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 500L)
-                .setMinUpdateIntervalMillis(200L)
+            val granularity = if (precise) Granularity.GRANULARITY_FINE else Granularity.GRANULARITY_COARSE
+            val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1_000L)
+                .setMinUpdateIntervalMillis(500L)
                 .setMinUpdateDistanceMeters(0f)
+                .setGranularity(granularity)
                 .setWaitForAccurateLocation(false)
                 .build()
             val callback = object : LocationCallback() {
                 override fun onLocationResult(result: LocationResult) {
-                    result.lastLocation?.toGnssSample()?.let { trySend(it) }
+                    result.locations.forEach { location -> trySend(location.toGnssSample()) }
                 }
             }
             client.requestLocationUpdates(request, callback, Looper.getMainLooper())
+                .addOnFailureListener { }
             client.lastLocation.addOnSuccessListener { location ->
-                location?.toGnssSample()?.let { trySend(it) }
+                if (location != null) trySend(location.toGnssSample())
             }
-            invokeOnClose { client.removeLocationUpdates(callback) }
-            true
+            return { runCatching { client.removeLocationUpdates(callback) } }
         } catch (_: Throwable) {
-            false
+            null
         }
-    }
-
-    @SuppressLint("MissingPermission")
-    private fun kotlinx.coroutines.channels.ProducerScope<GnssSample>.startPlatform() {
-        val manager = context.getSystemService(LocationManager::class.java) ?: return
-        val listener = LocationListener { location ->
-            location.toGnssSample()?.let { trySend(it) }
-        }
-        listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER).forEach { provider ->
-            if (!manager.allProviders.contains(provider)) return@forEach
-            runCatching { manager.getLastKnownLocation(provider) }
-                .getOrNull()
-                ?.toGnssSample()
-                ?.let { trySend(it) }
-            if (manager.isProviderEnabled(provider)) {
-                manager.requestLocationUpdates(provider, 500L, 0f, listener, Looper.getMainLooper())
-            }
-        }
-        invokeOnClose { manager.removeUpdates(listener) }
     }
 }
 
@@ -120,6 +149,7 @@ fun Location.toGnssSample(): GnssSample {
         horizontalAccuracyMeters = if (hasAccuracy()) accuracy.toDouble() else null,
         verticalAccuracyMeters = vertical,
         timeMs = time,
+        elapsedRealtimeMs = elapsedRealtimeNanos / 1_000_000L,
     )
 }
 
@@ -131,5 +161,26 @@ fun isLocationEnabled(context: Context): Boolean {
         @Suppress("DEPRECATION")
         manager.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
             manager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+    }
+}
+
+fun isGpsProviderEnabled(context: Context): Boolean {
+    val manager = context.getSystemService(LocationManager::class.java) ?: return false
+    if (!manager.allProviders.contains(LocationManager.GPS_PROVIDER)) return false
+    return runCatching { manager.isProviderEnabled(LocationManager.GPS_PROVIDER) }.getOrDefault(false)
+}
+
+fun locationModeChanges(context: Context): Flow<Unit> = callbackFlow {
+    val receiver = object : BroadcastReceiver() {
+        override fun onReceive(ctx: Context?, intent: Intent?) {
+            trySend(Unit)
+        }
+    }
+    val filter = IntentFilter(LocationManager.PROVIDERS_CHANGED_ACTION)
+    val registered = runCatching {
+        ContextCompat.registerReceiver(context, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
+    }.isSuccess
+    awaitClose {
+        if (registered) runCatching { context.unregisterReceiver(receiver) }
     }
 }

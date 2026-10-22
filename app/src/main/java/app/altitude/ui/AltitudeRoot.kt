@@ -3,7 +3,11 @@ package app.altitude.ui
 import android.Manifest
 import android.app.Activity
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
 import android.provider.Settings
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import android.view.WindowManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -19,9 +23,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -80,9 +85,34 @@ fun AltitudeRoot(viewModel: AltitudeViewModel) {
         ActivityResultContracts.RequestPermission(),
     ) { viewModel.refreshSystemState() }
     val requestLocation = {
-        locationLauncher.launch(
-            arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
-        )
+        val activity = context as Activity
+        val fineGranted = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_FINE_LOCATION,
+        ) == PackageManager.PERMISSION_GRANTED
+        val coarseGranted = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_COARSE_LOCATION,
+        ) == PackageManager.PERMISSION_GRANTED
+        val preciseBlocked = coarseGranted && !fineGranted &&
+            !ActivityCompat.shouldShowRequestPermissionRationale(
+                activity,
+                Manifest.permission.ACCESS_FINE_LOCATION,
+            )
+        if (preciseBlocked) {
+            context.startActivity(
+                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                    data = Uri.fromParts("package", context.packageName, null)
+                },
+            )
+        } else {
+            locationLauncher.launch(
+                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
+            )
+        }
+    }
+    val openLocationSettings = {
+        context.startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
     }
     val requestCamera = { cameraLauncher.launch(Manifest.permission.CAMERA) }
 
@@ -131,9 +161,7 @@ fun AltitudeRoot(viewModel: AltitudeViewModel) {
                         onToggleBrightness = { viewModel.setMaxBrightness(!state.prefs.maxBrightness) },
                         onOpenSettings = { viewModel.setSettingsOpen(true) },
                         onRequestLocation = requestLocation,
-                        onOpenLocationSettings = {
-                            context.startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
-                        },
+                        onOpenLocationSettings = openLocationSettings,
                         settingsOpen = settingsOpen,
                     )
                     AppMode.CAMERA -> CameraScreen(
@@ -143,7 +171,13 @@ fun AltitudeRoot(viewModel: AltitudeViewModel) {
                         onAnchor = viewModel::setCaptionAnchor,
                         onOpenSettings = { viewModel.setSettingsOpen(true) },
                         onRequestCamera = requestCamera,
-                        onSaved = viewModel::reportSave,
+                        onRequestLocation = requestLocation,
+                        onOpenLocationSettings = openLocationSettings,
+                        onOpenGallery = { viewModel.setGalleryOpen(true) },
+                        onCloseGallery = { viewModel.setGalleryOpen(false) },
+                        onDeletePhoto = viewModel::deletePhoto,
+                        onRefreshAlbum = viewModel::refreshAlbum,
+                        onSaved = viewModel::onCaptureFinished,
                     )
                 }
             }
@@ -166,7 +200,11 @@ fun AltitudeRoot(viewModel: AltitudeViewModel) {
                     Modifier
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
-                        .windowInsetsPadding(WindowInsets.safeDrawing)
+                        .windowInsetsPadding(
+                            WindowInsets.safeDrawing.only(
+                                WindowInsetsSides.Top + WindowInsetsSides.Horizontal,
+                            ),
+                        )
                         .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
                         .background(Color(0xFF141311))
                         .clickable(
@@ -174,7 +212,7 @@ fun AltitudeRoot(viewModel: AltitudeViewModel) {
                             indication = null,
                             onClick = {},
                         )
-                        .navigationBarsPadding()
+                        .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
                         .padding(top = 18.dp),
                 ) {
                     SettingsSheet(state.prefs, viewModel)

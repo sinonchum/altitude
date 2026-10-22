@@ -157,7 +157,7 @@ fun SettingsSheet(prefs: PrefsSnapshot, viewModel: AltitudeViewModel) {
             fontSize = 13.sp,
             lineHeight = 18.sp,
         )
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(28.dp))
     }
 }
 
