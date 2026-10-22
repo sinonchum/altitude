@@ -117,7 +117,7 @@ object WatermarkRenderer {
         val leftWidth = rect.width() * 0.62f
         val rightWidth = rect.width() * 0.36f
 
-        val wordmark = "ALTITUDE"
+        val wordmark = content.wordmark
         paint.typeface = AltitudeTypefaces.mediumOrDefault()
         paint.letterSpacing = 0.2f
         paint.textSize = wordmarkSize
@@ -134,17 +134,21 @@ object WatermarkRenderer {
         }
         val altitudeHeight = paint.lineHeight()
 
-        val coordinate = content.coordinates ?: "等待定位"
-        val coordinateCjk = content.coordinates == null || coordinate.hasCjk()
-        paint.typeface = if (coordinateCjk) AltitudeTypefaces.cjk else AltitudeTypefaces.regularOrDefault()
-        paint.letterSpacing = if (coordinateCjk) 0f else 0.015f
+        val coordinate = content.coordinates?.takeIf { it.isNotBlank() }
+        val coordinateCjk = coordinate?.hasCjk() == true
         var coordinateSize = metaSize
-        paint.textSize = coordinateSize
-        while (paint.measureText(coordinate) > leftWidth && coordinateSize > metricWidth * 0.015f) {
-            coordinateSize *= 0.92f
+        val coordinateHeight = if (coordinate == null) {
+            0f
+        } else {
+            paint.typeface = if (coordinateCjk) AltitudeTypefaces.cjk else AltitudeTypefaces.regularOrDefault()
+            paint.letterSpacing = if (coordinateCjk) 0f else 0.015f
             paint.textSize = coordinateSize
+            while (paint.measureText(coordinate) > leftWidth && coordinateSize > metricWidth * 0.015f) {
+                coordinateSize *= 0.92f
+                paint.textSize = coordinateSize
+            }
+            paint.lineHeight()
         }
-        val coordinateHeight = paint.lineHeight()
 
         val place = content.place
         val placeHeight = if (place == null) {
@@ -175,7 +179,9 @@ object WatermarkRenderer {
             paint.lineHeight()
         }
 
-        val leftHeight = wordmarkHeight + gap + coordinateHeight + if (place != null) gap + placeHeight else 0f
+        val leftHeight = wordmarkHeight +
+            (if (coordinate != null) gap + coordinateHeight else 0f) +
+            (if (place != null) gap + placeHeight else 0f)
         val rightHeight = altitudeHeight + if (time != null) gap + timeHeight else 0f
         val block = max(leftHeight, rightHeight)
         val top = rect.top + (rect.height() - block) / 2f
@@ -198,12 +204,14 @@ object WatermarkRenderer {
             paint,
         )
 
-        paint.color = secondary
-        paint.typeface = if (coordinateCjk) AltitudeTypefaces.cjk else AltitudeTypefaces.regularOrDefault()
-        paint.letterSpacing = if (coordinateCjk) 0f else 0.015f
-        paint.textSize = coordinateSize
-        val coordinateTop = leftTop + wordmarkHeight + gap
-        canvas.drawText(coordinate, rect.left, coordinateTop + paint.baselineOffset(), paint)
+        val coordinateTop = leftTop + wordmarkHeight + (if (coordinate != null) gap else 0f)
+        if (coordinate != null) {
+            paint.color = secondary
+            paint.typeface = if (coordinateCjk) AltitudeTypefaces.cjk else AltitudeTypefaces.regularOrDefault()
+            paint.letterSpacing = if (coordinateCjk) 0f else 0.015f
+            paint.textSize = coordinateSize
+            canvas.drawText(coordinate, rect.left, coordinateTop + paint.baselineOffset(), paint)
+        }
 
         if (place != null) {
             paint.typeface = AltitudeTypefaces.cjk

@@ -17,8 +17,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -45,17 +47,22 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import app.altitude.R
 import app.altitude.domain.AppMode
 import app.altitude.domain.CaptionAnchor
 import app.altitude.domain.WatermarkMetrics
 import app.altitude.domain.WatermarkStyle
-import app.altitude.domain.buildWatermarkContent
+import app.altitude.i18n.labelRes
+import app.altitude.i18n.rememberLocalFormat
 import app.altitude.ui.AltitudeUiState
 import app.altitude.ui.display.ModeSwitch
 import app.altitude.ui.theme.Outfit
@@ -74,11 +81,12 @@ fun CameraScreen(
     onAnchor: (CaptionAnchor) -> Unit,
     onOpenSettings: () -> Unit,
     onRequestCamera: () -> Unit,
-    onSaved: (String) -> Unit,
+    onSaved: (Int) -> Unit,
 ) {
     val context = LocalContext.current
+    val format = rememberLocalFormat()
     val pipeline = remember { PhotoPipeline(context) }
-    val content = buildWatermarkContent(
+    val content = format.watermark(
         altitudeMeters = state.reading.altitudeMslMeters,
         absoluteMsl = state.reading.absoluteMsl,
         unit = state.prefs.unit,
@@ -87,7 +95,7 @@ fun CameraScreen(
         place = if (state.prefs.showPlace) state.placeName else null,
         epochMs = state.nowMillis,
     )
-    var cameraError by remember { mutableStateOf<String?>(null) }
+    var cameraError by remember { mutableStateOf<Int?>(null) }
     var busy by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val imageCapture = remember {
@@ -111,16 +119,25 @@ fun CameraScreen(
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Text("相机还没打开", color = Color.White, fontFamily = Outfit, fontWeight = FontWeight.SemiBold, fontSize = 22.sp)
+                Text(
+                    stringResource(R.string.camera_permission_title),
+                    color = Color.White,
+                    fontFamily = Outfit,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 22.sp,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                )
                 Spacer(Modifier.height(10.dp))
                 Text(
-                    "亮屏海拔可以照常用。要把高度和经纬度写进照片，需要相机权限。",
+                    stringResource(R.string.camera_permission_body),
                     color = Color(0xFFB7B7B2),
                     fontSize = 15.sp,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    lineHeight = 22.sp,
                 )
                 Spacer(Modifier.height(22.dp))
                 Text(
-                    "允许相机",
+                    stringResource(R.string.camera_permission_action),
                     color = Color.Black,
                     fontFamily = Outfit,
                     fontWeight = FontWeight.SemiBold,
@@ -185,12 +202,13 @@ fun CameraScreen(
                                 },
                             )
                         }
-                        if (cameraError != null) {
+                        cameraError?.let { messageRes ->
                             Text(
-                                text = cameraError ?: "",
+                                text = stringResource(messageRes),
                                 color = Color.White,
                                 modifier = Modifier.align(Alignment.Center).padding(16.dp),
                                 fontSize = 13.sp,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                             )
                         }
                     }
@@ -235,7 +253,11 @@ fun CameraScreen(
                     .clickable(onClick = onOpenSettings),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Outlined.Settings, contentDescription = "设置", tint = Color(0xFFB7B7B2))
+                Icon(
+                    Icons.Outlined.Settings,
+                    contentDescription = stringResource(R.string.cd_settings),
+                    tint = Color(0xFFB7B7B2),
+                )
             }
         }
 
@@ -250,12 +272,19 @@ fun CameraScreen(
             if (state.prefs.watermarkStyle == WatermarkStyle.CAPTION) {
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    AnchorChip("底部", state.prefs.captionAnchor == CaptionAnchor.BOTTOM) { onAnchor(CaptionAnchor.BOTTOM) }
-                    AnchorChip("顶部", state.prefs.captionAnchor == CaptionAnchor.TOP) { onAnchor(CaptionAnchor.TOP) }
+                    AnchorChip(
+                        stringResource(R.string.anchor_bottom),
+                        state.prefs.captionAnchor == CaptionAnchor.BOTTOM,
+                    ) { onAnchor(CaptionAnchor.BOTTOM) }
+                    AnchorChip(
+                        stringResource(R.string.anchor_top),
+                        state.prefs.captionAnchor == CaptionAnchor.TOP,
+                    ) { onAnchor(CaptionAnchor.TOP) }
                 }
             }
             Spacer(Modifier.height(14.dp))
             val scale = if (busy) 0.92f else 1f
+            val shutterDescription = stringResource(R.string.cd_shutter)
             Box(
                 modifier = Modifier
                     .size(78.dp)
@@ -267,6 +296,7 @@ fun CameraScreen(
                     .padding(6.dp)
                     .clip(CircleShape)
                     .background(if (busy) Color(0xFFB9B9B4) else Color.White)
+                    .semantics { contentDescription = shutterDescription }
                     .clickable(
                         enabled = state.cameraGranted && !busy,
                         interactionSource = remember { MutableInteractionSource() },
@@ -287,8 +317,9 @@ fun CameraScreen(
                                     altitudeMeters = state.reading.altitudeMslMeters?.takeIf { state.reading.absoluteMsl },
                                     epochMs = state.nowMillis,
                                 )
+                                R.string.save_success
                             }.getOrElse { error ->
-                                "没有保存成功"
+                                (error as? CaptureException)?.messageRes ?: R.string.error_save_failed
                             }
                             onSaved(message)
                             busy = false
@@ -300,7 +331,7 @@ fun CameraScreen(
         val message = state.saveMessage
         if (message != null) {
             Text(
-                text = message,
+                text = stringResource(message),
                 color = Color(0xFF141414),
                 fontFamily = Outfit,
                 fontWeight = FontWeight.Medium,
@@ -318,11 +349,15 @@ fun CameraScreen(
 
 @Composable
 private fun StyleRow(selected: WatermarkStyle, onStyle: (WatermarkStyle) -> Unit) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        StyleChip("白底", selected == WatermarkStyle.PLATE_LIGHT) { onStyle(WatermarkStyle.PLATE_LIGHT) }
-        StyleChip("黑底", selected == WatermarkStyle.PLATE_DARK) { onStyle(WatermarkStyle.PLATE_DARK) }
-        StyleChip("画框", selected == WatermarkStyle.MOUNT) { onStyle(WatermarkStyle.MOUNT) }
-        StyleChip("浮印", selected == WatermarkStyle.CAPTION) { onStyle(WatermarkStyle.CAPTION) }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+    ) {
+        WatermarkStyle.entries.forEach { style ->
+            StyleChip(stringResource(style.labelRes()), selected == style) { onStyle(style) }
+        }
     }
 }
 
@@ -334,6 +369,8 @@ private fun StyleChip(label: String, selected: Boolean, onClick: () -> Unit) {
         fontFamily = Outfit,
         fontWeight = FontWeight.Medium,
         fontSize = 13.sp,
+        maxLines = 1,
+        softWrap = false,
         modifier = Modifier
             .clip(RoundedCornerShape(999.dp))
             .background(if (selected) Color.White else Color.White.copy(alpha = 0.08f))
@@ -361,7 +398,7 @@ private fun BindCamera(
     previewView: PreviewView,
     imageCapture: ImageCapture,
     lifecycleOwner: LifecycleOwner,
-    onError: (String?) -> Unit,
+    onError: (Int?) -> Unit,
 ) {
     val context = LocalContext.current
     DisposableEffect(previewView, imageCapture, lifecycleOwner) {
@@ -392,7 +429,7 @@ private fun BindCamera(
                 boundHeight = height
                 onError(null)
             } catch (error: Throwable) {
-                onError(error.message ?: "相机打开失败")
+                onError(R.string.error_camera_open)
             }
         }
         val layout = android.view.View.OnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->

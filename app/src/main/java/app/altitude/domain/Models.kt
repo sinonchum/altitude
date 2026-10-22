@@ -112,4 +112,5 @@ data class WatermarkContent(
     val coordinates: String?,
     val place: String?,
     val time: String?,
+    val wordmark: String = "ALTITUDE",
 )

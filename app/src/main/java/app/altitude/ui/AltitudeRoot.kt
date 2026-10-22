@@ -29,17 +29,19 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import app.altitude.R
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -57,7 +59,7 @@ fun AltitudeRoot(viewModel: AltitudeViewModel) {
     val context = LocalContext.current
     val view = LocalView.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    var settingsOpen by remember { mutableStateOf(false) }
+    val settingsOpen = state.settingsOpen
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -127,7 +129,7 @@ fun AltitudeRoot(viewModel: AltitudeViewModel) {
                         onMode = viewModel::setMode,
                         onToggleUnit = viewModel::toggleUnit,
                         onToggleBrightness = { viewModel.setMaxBrightness(!state.prefs.maxBrightness) },
-                        onOpenSettings = { settingsOpen = true },
+                        onOpenSettings = { viewModel.setSettingsOpen(true) },
                         onRequestLocation = requestLocation,
                         onOpenLocationSettings = {
                             context.startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
@@ -139,7 +141,7 @@ fun AltitudeRoot(viewModel: AltitudeViewModel) {
                         onMode = viewModel::setMode,
                         onStyle = viewModel::setWatermarkStyle,
                         onAnchor = viewModel::setCaptionAnchor,
-                        onOpenSettings = { settingsOpen = true },
+                        onOpenSettings = { viewModel.setSettingsOpen(true) },
                         onRequestCamera = requestCamera,
                         onSaved = viewModel::reportSave,
                     )
@@ -147,6 +149,7 @@ fun AltitudeRoot(viewModel: AltitudeViewModel) {
             }
         }
 
+        val closeSettings = stringResource(R.string.cd_close_settings)
         AnimatedVisibility(
             visible = settingsOpen && state.prefs.onboardingComplete,
             enter = fadeIn() + slideInVertically { it / 3 },
@@ -156,7 +159,8 @@ fun AltitudeRoot(viewModel: AltitudeViewModel) {
                 Modifier
                     .fillMaxSize()
                     .background(Color.Black.copy(alpha = 0.46f))
-                    .clickable { settingsOpen = false },
+                    .clickable { viewModel.setSettingsOpen(false) }
+                    .semantics { contentDescription = closeSettings },
             ) {
                 Box(
                     Modifier

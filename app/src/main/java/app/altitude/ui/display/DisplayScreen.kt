@@ -49,30 +49,32 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import app.altitude.domain.AltitudeSource
+import app.altitude.R
 import app.altitude.domain.AltitudeUnit
 import app.altitude.domain.AppMode
-import app.altitude.domain.formatAccuracy
-import app.altitude.domain.formatAltitudeNumber
-import app.altitude.domain.formatAltitudeReading
-import app.altitude.domain.formatCoordinatePair
-import app.altitude.domain.formatDisplayClock
-import app.altitude.domain.groupThousands
+import app.altitude.domain.metersToFeet
+import app.altitude.i18n.labelRes
+import app.altitude.i18n.nameRes
+import app.altitude.i18n.rememberLocalFormat
+import app.altitude.i18n.symbolRes
 import app.altitude.ui.AltitudeUiState
 import app.altitude.ui.theme.Outfit
 import app.altitude.ui.theme.dot
 import app.altitude.ui.theme.palette
 import kotlin.math.abs
 import kotlin.math.min
-import kotlin.math.roundToInt
+import kotlin.math.roundToLong
 
 @Composable
 fun DisplayScreen(
@@ -86,6 +88,7 @@ fun DisplayScreen(
     settingsOpen: Boolean,
 ) {
     val palette = state.prefs.theme.palette()
+    val format = rememberLocalFormat()
     var chrome by remember { mutableStateOf(true) }
     var token by remember { mutableIntStateOf(0) }
     LaunchedEffect(token, settingsOpen) {
@@ -100,6 +103,9 @@ fun DisplayScreen(
     }
     val reading = state.reading
     val meters = reading.altitudeMslMeters
+    val levelCaption = stringResource(R.string.unit_level_caption, stringResource(state.prefs.unit.symbolRes()))
+    val pressureCaption = stringResource(R.string.unit_pressure_caption)
+    val unitName = stringResource(state.prefs.unit.nameRes())
 
     Box(
         modifier = Modifier
@@ -123,18 +129,20 @@ fun DisplayScreen(
             )
             Spacer(Modifier.height(18.dp))
             Text(
-                text = "ALTITUDE",
+                text = stringResource(R.string.wordmark),
                 color = palette.secondary,
                 fontFamily = Outfit,
                 fontWeight = FontWeight.Medium,
                 fontSize = 13.sp,
                 letterSpacing = 4.sp,
+                maxLines = 1,
+                softWrap = false,
             )
             Spacer(Modifier.weight(1f))
             BoxWithConstraints(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                 val sample = when {
-                    meters == null -> "—"
-                    else -> formatAltitudeNumber(meters, state.prefs.unit)
+                    meters == null -> stringResource(R.string.altitude_placeholder)
+                    else -> format.altitudeNumber(meters, state.prefs.unit)
                 }
                 val fontSize = min(
                     maxWidth.value / (sample.length.coerceAtLeast(1) * 0.70f),
@@ -153,34 +161,38 @@ fun DisplayScreen(
                 )
             }
             Spacer(Modifier.height(8.dp))
+            val caption = when {
+                meters == null -> stringResource(R.string.caption_placeholder)
+                reading.absoluteMsl -> levelCaption
+                else -> pressureCaption
+            }
             Text(
-                text = when {
-                    meters == null -> " "
-                    reading.absoluteMsl && state.prefs.unit == AltitudeUnit.FEET -> "英尺  ·  海平面"
-                    reading.absoluteMsl -> "米  ·  海平面"
-                    else -> "气压高度  ·  尚未用卫星校准"
-                },
+                text = caption,
                 color = if (reading.absoluteMsl || meters == null) palette.secondary else palette.accent,
                 fontFamily = Outfit,
                 fontWeight = FontWeight.Medium,
                 fontSize = 15.sp,
-                letterSpacing = 1.4.sp,
+                letterSpacing = if (caption.length > 24) 0.sp else 1.2.sp,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.fillMaxWidth(),
             )
             Spacer(Modifier.weight(1f))
             if (!state.locationGranted) {
                 Prompt(
-                    title = "还没有定位权限",
-                    body = "海拔离不开卫星。授权之后，数字会开始跟着你走。",
-                    action = "允许定位",
+                    title = stringResource(R.string.prompt_location_permission_title),
+                    body = stringResource(R.string.prompt_location_permission_body),
+                    action = stringResource(R.string.prompt_location_permission_action),
                     onAction = onRequestLocation,
                     primary = palette.primary,
                     secondary = palette.secondary,
                 )
             } else if (!state.locationEnabled) {
                 Prompt(
-                    title = "系统定位关着",
-                    body = "打开定位服务，卫星高度才会进来。",
-                    action = "去打开",
+                    title = stringResource(R.string.prompt_location_disabled_title),
+                    body = stringResource(R.string.prompt_location_disabled_body),
+                    action = stringResource(R.string.prompt_location_disabled_action),
                     onAction = onOpenLocationSettings,
                     primary = palette.primary,
                     secondary = palette.secondary,
@@ -206,27 +218,38 @@ fun DisplayScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                val brightnessDescription = stringResource(
+                    if (state.prefs.maxBrightness) R.string.cd_brightness_on else R.string.cd_brightness_off,
+                )
                 IconButton(onClick = { reveal(); onToggleBrightness() }) {
                     Icon(
                         Icons.Outlined.WbSunny,
-                        contentDescription = if (state.prefs.maxBrightness) "关闭最高亮度" else "最高亮度",
+                        contentDescription = brightnessDescription,
                         tint = if (state.prefs.maxBrightness) palette.accent else palette.secondary,
                     )
                 }
+                val unitDescription = stringResource(R.string.cd_unit_toggle, unitName)
                 Text(
-                    text = if (state.prefs.unit == AltitudeUnit.METERS) "米" else "英尺",
+                    text = unitName,
                     color = palette.primary,
                     fontFamily = Outfit,
                     fontWeight = FontWeight.Medium,
                     fontSize = 14.sp,
-                    letterSpacing = 1.sp,
+                    letterSpacing = 0.4.sp,
+                    maxLines = 1,
+                    softWrap = false,
                     modifier = Modifier
                         .clip(RoundedCornerShape(999.dp))
                         .clickable { reveal(); onToggleUnit() }
-                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                        .padding(horizontal = 14.dp, vertical = 8.dp)
+                        .semantics { contentDescription = unitDescription },
                 )
                 IconButton(onClick = { reveal(); onOpenSettings() }) {
-                    Icon(Icons.Outlined.Settings, contentDescription = "设置", tint = palette.secondary)
+                    Icon(
+                        Icons.Outlined.Settings,
+                        contentDescription = stringResource(R.string.cd_settings),
+                        tint = palette.secondary,
+                    )
                 }
             }
         }
@@ -262,6 +285,7 @@ private fun HeroNumber(
     onTap: () -> Unit,
     onToggleUnit: () -> Unit,
 ) {
+    val format = rememberLocalFormat()
     val anim = remember { Animatable(0f) }
     var primed by remember { mutableStateOf(false) }
     LaunchedEffect(meters) {
@@ -273,11 +297,16 @@ private fun HeroNumber(
             anim.animateTo(value, spring(dampingRatio = 0.9f, stiffness = 140f))
         }
     }
-    val shown = if (meters != null && primed) groupThousands(anim.value.roundToInt().toLong()) else "—"
-    val description = if (meters == null) {
-        "正在等待海拔"
+    val shown = if (meters != null && primed) {
+        val displayed = if (unit == AltitudeUnit.FEET) metersToFeet(anim.value.toDouble()) else anim.value.toDouble()
+        format.integer(displayed.roundToLong())
     } else {
-        "海拔 ${formatAltitudeReading(meters, unit)}"
+        stringResource(R.string.altitude_placeholder)
+    }
+    val description = if (meters == null) {
+        stringResource(R.string.cd_altitude_waiting)
+    } else {
+        stringResource(R.string.cd_altitude, format.altitudeReading(meters, unit))
     }
     Box(
         modifier = Modifier
@@ -345,8 +374,9 @@ private fun MetaBlock(
     primary: androidx.compose.ui.graphics.Color,
     secondary: androidx.compose.ui.graphics.Color,
 ) {
+    val format = rememberLocalFormat()
     val reading = state.reading
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
         if (state.prefs.showAccuracy && reading.accuracyMeters != null) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
@@ -357,24 +387,33 @@ private fun MetaBlock(
                 )
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    text = formatAccuracy(reading.accuracyMeters, state.prefs.unit) + "   " + reading.source.shortLabel(),
+                    text = stringResource(
+                        R.string.format_accuracy_source,
+                        format.accuracy(reading.accuracyMeters, state.prefs.unit),
+                        stringResource(reading.source.labelRes()),
+                    ),
                     color = secondary,
                     fontFamily = Outfit,
                     fontWeight = FontWeight.Medium,
                     fontSize = 13.sp,
-                    letterSpacing = 0.6.sp,
+                    letterSpacing = 0.2.sp,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
             Spacer(Modifier.height(14.dp))
         }
         if (state.prefs.showCoordinates && state.latitude != null && state.longitude != null) {
             Text(
-                text = formatCoordinatePair(state.latitude, state.longitude),
+                text = format.coordinatePair(state.latitude, state.longitude),
                 color = primary.copy(alpha = 0.88f),
                 fontFamily = Outfit,
                 fontWeight = FontWeight.Normal,
                 fontSize = 15.sp,
-                letterSpacing = 0.4.sp,
+                letterSpacing = 0.2.sp,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
             )
             Spacer(Modifier.height(6.dp))
         }
@@ -384,17 +423,21 @@ private fun MetaBlock(
                 color = secondary,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
             )
             Spacer(Modifier.height(6.dp))
         }
         if (state.prefs.showClock) {
             Text(
-                text = formatDisplayClock(state.nowMillis),
+                text = format.displayClock(state.nowMillis),
                 color = secondary,
                 fontFamily = Outfit,
                 fontWeight = FontWeight.Medium,
                 fontSize = 13.sp,
                 letterSpacing = 1.5.sp,
+                maxLines = 1,
             )
         }
     }
@@ -406,6 +449,7 @@ private fun Searching(
     primary: androidx.compose.ui.graphics.Color,
     secondary: androidx.compose.ui.graphics.Color,
 ) {
+    val format = rememberLocalFormat()
     val pulse = rememberInfiniteTransition(label = "search")
     val alpha by pulse.animateFloat(
         initialValue = 0.35f,
@@ -413,18 +457,19 @@ private fun Searching(
         animationSpec = infiniteRepeatable(tween(900), RepeatMode.Reverse),
         label = "search-alpha",
     )
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
         Text(
-            text = if (state.geoidReady) "正在寻找卫星" else "正在准备海拔模型",
+            text = stringResource(if (state.geoidReady) R.string.searching_satellites else R.string.preparing_geoid),
             color = primary,
             fontFamily = Outfit,
             fontWeight = FontWeight.Medium,
             fontSize = 16.sp,
+            textAlign = TextAlign.Center,
             modifier = Modifier.alpha(alpha),
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            text = "走到空旷处，把天空让给天线。第一颗星有时要一分钟。",
+            text = stringResource(R.string.searching_hint),
             color = secondary,
             fontSize = 13.sp,
             textAlign = TextAlign.Center,
@@ -435,11 +480,37 @@ private fun Searching(
             val age = abs(state.nowMillis - known.timeMs)
             Spacer(Modifier.height(14.dp))
             Text(
-                text = "上次 ${formatAltitudeReading(known.altitudeMeters, state.prefs.unit)} · ${relativeAge(age)}",
+                text = stringResource(
+                    R.string.last_known,
+                    format.altitudeReading(known.altitudeMeters, state.prefs.unit),
+                    relativeAge(age),
+                ),
                 color = secondary,
                 fontFamily = Outfit,
                 fontSize = 13.sp,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
             )
+        }
+    }
+}
+
+@Composable
+private fun relativeAge(ageMs: Long): String {
+    val minutes = ageMs / 60_000
+    return when {
+        minutes < 1 -> stringResource(R.string.age_just_now)
+        minutes < 60 -> {
+            val count = minutes.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+            pluralStringResource(R.plurals.age_minutes, count, count)
+        }
+        minutes < 60 * 24 -> {
+            val count = (minutes / 60).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+            pluralStringResource(R.plurals.age_hours, count, count)
+        }
+        else -> {
+            val count = (minutes / (60 * 24)).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+            pluralStringResource(R.plurals.age_days, count, count)
         }
     }
 }
@@ -453,8 +524,15 @@ private fun Prompt(
     primary: androidx.compose.ui.graphics.Color,
     secondary: androidx.compose.ui.graphics.Color,
 ) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(title, color = primary, fontFamily = Outfit, fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+        Text(
+            title,
+            color = primary,
+            fontFamily = Outfit,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 18.sp,
+            textAlign = TextAlign.Center,
+        )
         Spacer(Modifier.height(8.dp))
         Text(body, color = secondary, fontSize = 14.sp, textAlign = TextAlign.Center, lineHeight = 20.sp)
         Spacer(Modifier.height(16.dp))
@@ -464,6 +542,7 @@ private fun Prompt(
             fontFamily = Outfit,
             fontWeight = FontWeight.SemiBold,
             fontSize = 15.sp,
+            textAlign = TextAlign.Center,
             modifier = Modifier
                 .clip(RoundedCornerShape(999.dp))
                 .background(primary.copy(alpha = 0.1f))
@@ -488,8 +567,12 @@ internal fun ModeSwitch(
             .padding(4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        SwitchChip("亮屏", mode == AppMode.DISPLAY, primary, secondary) { onMode(AppMode.DISPLAY) }
-        SwitchChip("相机", mode == AppMode.CAMERA, primary, secondary) { onMode(AppMode.CAMERA) }
+        SwitchChip(stringResource(R.string.mode_display), mode == AppMode.DISPLAY, primary, secondary) {
+            onMode(AppMode.DISPLAY)
+        }
+        SwitchChip(stringResource(R.string.mode_camera), mode == AppMode.CAMERA, primary, secondary) {
+            onMode(AppMode.CAMERA)
+        }
     }
 }
 
@@ -507,12 +590,14 @@ private fun SwitchChip(
         fontFamily = Outfit,
         fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
         fontSize = 14.sp,
-        letterSpacing = 0.6.sp,
+        letterSpacing = 0.2.sp,
+        maxLines = 1,
+        softWrap = false,
         modifier = Modifier
             .clip(RoundedCornerShape(999.dp))
             .background(if (selected) primary.copy(alpha = 0.12f) else androidx.compose.ui.graphics.Color.Transparent)
             .clickable(onClick = onClick)
-            .padding(horizontal = 18.dp, vertical = 8.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
     )
 }
 
@@ -525,22 +610,4 @@ private fun IconButton(onClick: () -> Unit, content: @Composable () -> Unit) {
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) { content() }
-}
-
-private fun AltitudeSource.shortLabel(): String = when (this) {
-    AltitudeSource.GPS -> "卫星"
-    AltitudeSource.FUSED -> "卫星 + 气压"
-    AltitudeSource.PRESSURE_HOLDOVER -> "气压延续"
-    AltitudeSource.PRESSURE_UNCALIBRATED -> "气压未校准"
-    AltitudeSource.NONE -> "无信号"
-}
-
-private fun relativeAge(ageMs: Long): String {
-    val minutes = ageMs / 60_000
-    return when {
-        minutes < 1 -> "刚刚"
-        minutes < 60 -> "${minutes} 分钟前"
-        minutes < 60 * 24 -> "${minutes / 60} 小时前"
-        else -> "${minutes / (60 * 24)} 天前"
-    }
 }

@@ -8,6 +8,7 @@ import org.junit.Test
 import java.io.File
 import java.time.ZoneId
 import java.time.ZonedDateTime
+import java.util.Locale
 
 class PressureAltitudeTest {
     @Test
@@ -141,6 +142,33 @@ class FormatTest {
         val waiting = buildWatermarkContent(null, false, AltitudeUnit.METERS, null, null, null, millis, zone)
         assertEquals("— —", waiting.altitude)
         assertNull(waiting.coordinates)
+    }
+
+    @Test
+    fun numbersFollowTheLocale() {
+        assertEquals("5,210", formatInteger(5210, Locale.US))
+        assertEquals("-12", formatInteger(-12, Locale.US))
+        assertEquals("1,000,000", formatInteger(1_000_000, Locale.US))
+        assertEquals("29.65200", formatDecimal(29.652, 5, Locale.US))
+
+        val frenchGrouped = formatInteger(5210, Locale.FRANCE)
+        assertTrue(frenchGrouped.startsWith("5"))
+        assertTrue(frenchGrouped.endsWith("210"))
+        val separator = frenchGrouped.removePrefix("5").removeSuffix("210")
+        assertEquals(1, separator.length)
+        assertTrue(Character.isSpaceChar(separator[0]))
+        assertFalse(frenchGrouped.contains(','))
+        assertFalse(frenchGrouped.contains('.'))
+
+        val frenchDecimal = formatDecimal(29.652, 5, Locale.FRANCE)
+        assertEquals("29,65200", frenchDecimal)
+
+        assertEquals("5,210", formatInteger(5210, Locale.SIMPLIFIED_CHINESE))
+        assertEquals("29.65200", formatDecimal(29.652, 5, Locale.SIMPLIFIED_CHINESE))
+
+        val frenchReading = formatAltitudeReading(5210.0, AltitudeUnit.METERS, Locale.FRANCE)
+        assertTrue(frenchReading.endsWith(" m"))
+        assertTrue(Character.isSpaceChar(frenchReading[1]))
     }
 }
 

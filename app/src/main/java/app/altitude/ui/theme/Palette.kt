@@ -26,11 +26,3 @@ fun FixQuality.dot(): Color = when (this) {
     FixQuality.POOR -> Color(0xFFE07A5F)
     FixQuality.SEARCHING, FixQuality.NONE -> Color(0xFF9A958C)
 }
-
-fun DisplayTheme.label(): String = when (this) {
-    DisplayTheme.NIGHT -> "夜色"
-    DisplayTheme.VOID -> "纯黑"
-    DisplayTheme.GLACIER -> "冰川"
-    DisplayTheme.SAFFRON -> "暖金"
-    DisplayTheme.SNOW -> "雪地"
-}
