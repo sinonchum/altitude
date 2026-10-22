@@ -50,7 +50,8 @@ data class AltitudeUiState(
     val placeName: String?,
     val prefs: PrefsSnapshot,
     val mode: AppMode,
-    val saveMessage: String?,
+    val saveMessage: Int?,
+    val settingsOpen: Boolean,
     val locationGranted: Boolean,
     val cameraGranted: Boolean,
     val locationEnabled: Boolean,
@@ -71,7 +72,8 @@ class AltitudeViewModel(application: Application) : AndroidViewModel(application
     private val place = MutableStateFlow<String?>(null)
     private val geoid = MutableStateFlow<GeoidModel?>(null)
     private val mode = MutableStateFlow(AppMode.DISPLAY)
-    private val saveMessage = MutableStateFlow<String?>(null)
+    private val saveMessage = MutableStateFlow<Int?>(null)
+    private val settingsOpen = MutableStateFlow(false)
     private val locationGranted = MutableStateFlow(false)
     private val cameraGranted = MutableStateFlow(false)
     private val locationEnabled = MutableStateFlow(true)
@@ -116,14 +118,23 @@ class AltitudeViewModel(application: Application) : AndroidViewModel(application
         val sensors = combine(reading, gps, place, nowMillis, geoid) { current, sample, placeName, now, model ->
             SensorSlice(current, sample, placeName, now, model != null)
         }
+        val access = combine(locationGranted, cameraGranted, settingsOpen) { location, camera, settings ->
+            AccessSlice(location, camera, settings)
+        }
         val chrome = combine(
             preferences.updates(),
             mode,
             saveMessage,
-            locationGranted,
-            cameraGranted,
-        ) { prefs, currentMode, message, location, camera ->
-            ChromeSlice(prefs, currentMode, message, location, camera)
+            access,
+        ) { prefs, currentMode, message, accessSlice ->
+            ChromeSlice(
+                prefs,
+                currentMode,
+                message,
+                accessSlice.locationGranted,
+                accessSlice.cameraGranted,
+                accessSlice.settingsOpen,
+            )
         }
         val device = combine(locationEnabled, hasBarometer, lastKnown) { enabled, baro, known ->
             Triple(enabled, baro, known)
@@ -140,6 +151,7 @@ class AltitudeViewModel(application: Application) : AndroidViewModel(application
                 prefs = chromeSlice.prefs,
                 mode = chromeSlice.mode,
                 saveMessage = chromeSlice.saveMessage,
+                settingsOpen = chromeSlice.settingsOpen,
                 locationGranted = chromeSlice.locationGranted,
                 cameraGranted = chromeSlice.cameraGranted,
                 locationEnabled = deviceSlice.first,
@@ -202,11 +214,15 @@ class AltitudeViewModel(application: Application) : AndroidViewModel(application
 
     fun completeOnboarding() = preferences.setOnboardingComplete()
 
-    fun reportSave(message: String) {
-        saveMessage.value = message
+    fun setSettingsOpen(open: Boolean) {
+        settingsOpen.value = open
+    }
+
+    fun reportSave(messageRes: Int) {
+        saveMessage.value = messageRes
         viewModelScope.launch {
             delay(2_800)
-            if (saveMessage.value == message) saveMessage.value = null
+            if (saveMessage.value == messageRes) saveMessage.value = null
         }
     }
 
@@ -257,6 +273,7 @@ class AltitudeViewModel(application: Application) : AndroidViewModel(application
             prefs = prefs,
             mode = AppMode.DISPLAY,
             saveMessage = null,
+            settingsOpen = false,
             locationGranted = false,
             cameraGranted = false,
             locationEnabled = true,
@@ -275,12 +292,19 @@ class AltitudeViewModel(application: Application) : AndroidViewModel(application
         val geoidReady: Boolean,
     )
 
+    private data class AccessSlice(
+        val locationGranted: Boolean,
+        val cameraGranted: Boolean,
+        val settingsOpen: Boolean,
+    )
+
     private data class ChromeSlice(
         val prefs: PrefsSnapshot,
         val mode: AppMode,
-        val saveMessage: String?,
+        val saveMessage: Int?,
         val locationGranted: Boolean,
         val cameraGranted: Boolean,
+        val settingsOpen: Boolean,
     )
 
     private companion object {
