@@ -93,12 +93,20 @@
     <string name="settings_dynamic_title">界面跟随系统配色</string>
     <string name="settings_dynamic_subtitle">只给设置里的按钮上色，不改亮屏和水印</string>
     <string name="settings_watermark_note">水印始终带上海拔、经纬度和时间。亮屏上的坐标可以单独关掉，避免拍屏幕时太满。</string>
+    <string name="settings_about_version">关于 / 版本 %1$s</string>
     <string name="toggle_on">开</string>
     <string name="toggle_off">关</string>
 
     <string name="camera_permission_title">相机还没打开</string>
     <string name="camera_permission_body">亮屏海拔可以照常用。要把高度和经纬度写进照片，需要相机权限。</string>
     <string name="camera_permission_action">允许相机</string>
+    <string name="zoom_ratio">%1$s×</string>
+    <string name="cd_zoom_preset">变焦到 %1$s</string>
+    <string name="cd_zoom_slider">变焦</string>
+    <string name="cd_camera_preview">取景画面。双指缩放，点按对焦，长按锁定对焦。</string>
+    <string name="cd_exposure">曝光补偿</string>
+    <string name="cd_focus_target">对焦点</string>
+    <string name="focus_locked">已锁定</string>
     <string name="watermark_light">白底</string>
     <string name="watermark_dark">黑底</string>
     <string name="watermark_mount">画框</string>

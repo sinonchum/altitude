@@ -2,7 +2,9 @@ package app.altitude.ui.camera
 
 import android.util.Rational
 import android.view.Surface
+import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
+import androidx.camera.core.ZoomState
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.Preview
 import androidx.camera.core.UseCaseGroup
@@ -40,9 +42,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -61,6 +66,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.Observer
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.foundation.Image
 import app.altitude.R
@@ -127,6 +133,34 @@ fun CameraScreen(
             implementationMode = PreviewView.ImplementationMode.COMPATIBLE
             scaleType = PreviewView.ScaleType.FILL_CENTER
             setBackgroundColor(android.graphics.Color.BLACK)
+        }
+    }
+    var boundCamera by remember { mutableStateOf<Camera?>(null) }
+    var zoomMin by remember { mutableFloatStateOf(1f) }
+    var zoomMax by remember { mutableFloatStateOf(1f) }
+    var zoomRatio by remember { mutableFloatStateOf(1f) }
+    var linearZoom by remember { mutableFloatStateOf(0f) }
+    var zoomHud by remember { mutableStateOf(false) }
+    var zoomHudToken by remember { mutableIntStateOf(0) }
+    LaunchedEffect(zoomHudToken) {
+        if (zoomHudToken == 0) return@LaunchedEffect
+        zoomHud = true
+        kotlinx.coroutines.delay(1_000)
+        zoomHud = false
+    }
+    DisposableEffect(boundCamera) {
+        val live = boundCamera?.cameraInfo?.zoomState
+        if (live == null) {
+            onDispose { }
+        } else {
+            val observer = Observer<ZoomState> { reading ->
+                zoomMin = reading.minZoomRatio
+                zoomMax = reading.maxZoomRatio
+                zoomRatio = reading.zoomRatio
+                linearZoom = reading.linearZoom
+            }
+            live.observeForever(observer)
+            onDispose { live.removeObserver(observer) }
         }
     }
 
@@ -229,6 +263,7 @@ fun CameraScreen(
                     imageCapture = imageCapture,
                     lifecycleOwner = LocalLifecycleOwner.current,
                     onError = { cameraError = it },
+                    onCamera = { boundCamera = it },
                 )
                 Column(
                     modifier = Modifier
@@ -266,6 +301,21 @@ fun CameraScreen(
                                 fontSize = 13.sp,
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                             )
+                        }
+                        PreviewGestures(
+                            previewView = previewView,
+                            camera = boundCamera,
+                            zoomRatio = zoomRatio,
+                            zoomMin = zoomMin,
+                            zoomMax = zoomMax,
+                            onZoomRatio = { next ->
+                                zoomRatio = next
+                                boundCamera?.cameraControl?.setZoomRatio(next)
+                            },
+                            onPinch = { zoomHudToken += 1 },
+                        )
+                        if (zoomHud) {
+                            ZoomReadout(ratio = zoomRatio, modifier = Modifier.align(Alignment.Center))
                         }
                     }
                     if (state.prefs.watermarkStyle != WatermarkStyle.CAPTION) {
@@ -336,6 +386,25 @@ fun CameraScreen(
                         .padding(horizontal = 16.dp, vertical = 8.dp),
                 )
                 Spacer(Modifier.height(10.dp))
+            }
+            if (boundCamera != null && zoomMax > zoomMin) {
+                ZoomControls(
+                    ratio = zoomRatio,
+                    min = zoomMin,
+                    max = zoomMax,
+                    linear = linearZoom,
+                    onRatio = { preset ->
+                        zoomRatio = preset
+                        boundCamera?.cameraControl?.setZoomRatio(preset)
+                        zoomHudToken += 1
+                    },
+                    onLinear = { value ->
+                        linearZoom = value
+                        boundCamera?.cameraControl?.setLinearZoom(value)
+                        zoomHudToken += 1
+                    },
+                )
+                Spacer(Modifier.height(8.dp))
             }
             StyleRow(state.prefs.watermarkStyle, onStyle)
             if (state.prefs.watermarkStyle == WatermarkStyle.CAPTION) {
@@ -508,8 +577,10 @@ private fun BindCamera(
     imageCapture: ImageCapture,
     lifecycleOwner: LifecycleOwner,
     onError: (Int?) -> Unit,
+    onCamera: (Camera?) -> Unit,
 ) {
     val context = LocalContext.current
+    val currentOnCamera by rememberUpdatedState(onCamera)
     DisposableEffect(previewView, imageCapture, lifecycleOwner) {
         var disposed = false
         var providerRef: ProcessCameraProvider? = null
@@ -533,11 +604,17 @@ private fun BindCamera(
                 provider.unbindAll()
                 val builder = UseCaseGroup.Builder().addUseCase(preview).addUseCase(imageCapture)
                 builder.setViewPort(ViewPort.Builder(Rational(width, height), rotation).build())
-                provider.bindToLifecycle(lifecycleOwner, CameraSelector.DEFAULT_BACK_CAMERA, builder.build())
+                val camera = provider.bindToLifecycle(
+                    lifecycleOwner,
+                    CameraSelector.DEFAULT_BACK_CAMERA,
+                    builder.build(),
+                )
+                currentOnCamera(camera)
                 boundWidth = width
                 boundHeight = height
                 onError(null)
             } catch (error: Throwable) {
+                currentOnCamera(null)
                 onError(R.string.error_camera_open)
             }
         }
@@ -548,6 +625,7 @@ private fun BindCamera(
         future.addListener({ previewView.post(bind) }, executor)
         onDispose {
             disposed = true
+            currentOnCamera(null)
             previewView.removeOnLayoutChangeListener(layout)
             previewView.removeCallbacks(bind)
             providerRef?.unbindAll()
