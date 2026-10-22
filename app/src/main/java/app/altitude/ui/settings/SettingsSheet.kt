@@ -68,7 +68,10 @@ fun SettingsSheet(prefs: PrefsSnapshot, viewModel: AltitudeViewModel) {
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             AppLanguage.entries.forEach { language ->
                 Choice(stringResource(language.labelRes()), selectedLanguage == language, accent) {
-                    if (selectedLanguage != language) applyAppLanguage(context, language)
+                    if (selectedLanguage != language) {
+                        applyAppLanguage(context, language)
+                        viewModel.onAppLanguageChanged(language)
+                    }
                 }
             }
         }

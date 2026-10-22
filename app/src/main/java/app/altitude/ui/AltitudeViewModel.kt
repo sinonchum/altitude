@@ -27,6 +27,8 @@ import app.altitude.domain.PrefsSnapshot
 import app.altitude.domain.WatermarkStyle
 import app.altitude.domain.resolveMsl
 import app.altitude.gallery.AlbumIndex
+import app.altitude.i18n.AppLanguage
+import app.altitude.i18n.toLocale
 import app.altitude.location.GnssRepository
 import app.altitude.location.isGpsProviderEnabled
 import app.altitude.location.isLocationEnabled
@@ -42,6 +44,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
@@ -81,6 +84,7 @@ class AltitudeViewModel(application: Application) : AndroidViewModel(application
     private val gps = MutableStateFlow<GnssSample?>(null)
     private val pressure = MutableStateFlow<Double?>(null)
     private val place = MutableStateFlow<String?>(null)
+    private val placeLanguage = MutableStateFlow(AppLanguage.current())
     private val geoid = MutableStateFlow<GeoidModel?>(null)
     private val mode = MutableStateFlow(AppMode.DISPLAY)
     private val saveMessage = MutableStateFlow<Int?>(null)
@@ -120,11 +124,19 @@ class AltitudeViewModel(application: Application) : AndroidViewModel(application
         }
         refreshAlbum()
         viewModelScope.launch {
-            gps.filterNotNull()
-                .map { cell(it.latitude) to cell(it.longitude) }
+            combine(
+                gps.filterNotNull().map { cell(it.latitude) to cell(it.longitude) },
+                placeLanguage,
+            ) { cell, language -> cell to language }
                 .distinctUntilChanged()
-                .collect { (latCell, lonCell) ->
-                    val name = resolvePlaceName(application, latCell * CELL, lonCell * CELL)
+                .collectLatest { (cell, language) ->
+                    val (latCell, lonCell) = cell
+                    val name = resolvePlaceName(
+                        application,
+                        latCell * CELL,
+                        lonCell * CELL,
+                        language.toLocale(),
+                    )
                     if (!name.isNullOrBlank()) place.value = name
                 }
         }
@@ -282,6 +294,10 @@ class AltitudeViewModel(application: Application) : AndroidViewModel(application
 
     fun setSettingsOpen(open: Boolean) {
         settingsOpen.value = open
+    }
+
+    fun onAppLanguageChanged(language: AppLanguage) {
+        placeLanguage.value = language
     }
 
     fun reportSave(messageRes: Int) {

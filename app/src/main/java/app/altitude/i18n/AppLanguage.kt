@@ -2,12 +2,14 @@ package app.altitude.i18n
 
 import android.app.LocaleManager
 import android.content.Context
+import android.content.res.Resources
 import android.os.Build
 import android.os.LocaleList
 import androidx.annotation.StringRes
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
 import app.altitude.R
+import java.util.Locale
 
 enum class AppLanguage(val tag: String?) {
     SYSTEM(null),
@@ -36,6 +38,23 @@ enum class AppLanguage(val tag: String?) {
                 else -> SYSTEM
             }
         }
+    }
+}
+
+fun AppLanguage.toLocale(): Locale = when (this) {
+    AppLanguage.ENGLISH -> Locale.forLanguageTag("en")
+    AppLanguage.FRENCH -> Locale.forLanguageTag("fr")
+    AppLanguage.CHINESE -> Locale.forLanguageTag("zh-CN")
+    AppLanguage.SYSTEM -> systemLocale()
+}
+
+private fun systemLocale(): Locale {
+    val configuration = Resources.getSystem().configuration
+    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+        configuration.locales[0]
+    } else {
+        @Suppress("DEPRECATION")
+        configuration.locale
     }
 }
 

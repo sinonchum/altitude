@@ -40,7 +40,7 @@ python3 tools/fetch_assets.py
 ./gradlew :app:assembleDebug
 ```
 
-The debug APK is `app/build/outputs/apk/debug/Altitude-1.2.0-debug.apk`.
+The debug APK is `app/build/outputs/apk/debug/Altitude-1.2.1-debug.apk`.
 
 On an emulator, inject ellipsoid height as longitude, latitude, then meters. Near Lhasa the geoid is about −35 m, so an injected height of 3650 is shown as about 3685 m above sea level:
 
@@ -52,21 +52,21 @@ An emulator has no barometer. A phone with one labels the reading as satellite p
 
 ### Releases
 
-This tree is Android 1.2.0. Debug APKs are published as GitHub prereleases under tags `v*-debug`:
+This tree is Android 1.2.1. Debug APKs are published as GitHub prereleases under tags `v*-debug`:
 
 - [All releases](https://github.com/sinonchum/altitude/releases)
 
 ### Data sources and attribution
 
 - **Sea level.** GPS ellipsoid height is converted with the bundled EGM96 15′ geoid (`app/src/main/assets/egm96-15.bin`, about 2 MB), taken from GeographicLib’s `egm96-15.pgm` (NGA public data). On Android 14 and later, the platform sea-level altitude is used when the system provides one. A barometer, when present, follows short motion and is calibrated from GPS. The live reading does not need a network.
-- **Place names.** The platform geocoder, when it is available. The line can be empty offline.
+- **Place names.** [OpenStreetMap Nominatim](https://nominatim.openstreetmap.org/) reverse geocoding, in the app language, at most one request per second. The User-Agent is `Altitude/<version> (https://github.com/sinonchum/altitude)`. Map data © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors. If Nominatim cannot be reached, the platform geocoder is used.
 - **Type.** [Outfit](https://github.com/Outfitio/Outfit-Fonts) by The Outfit Project Authors, under the SIL Open Font License 1.1. See [third_party/outfit/OFL.txt](third_party/outfit/OFL.txt). Chinese text uses the system sans-serif.
 
 ### Privacy
 
 Altitude has no account and does not upload a track. Location, camera, and photo access are requested when those features are used.
 
-The live altitude is computed on the phone. A place-name lookup may send coordinates to the platform geocoder. Photos you take or frame are stored on the device in `Pictures/Altitude`.
+The live altitude is computed on the phone. Coordinates are sent to Nominatim when a place name is requested. Photos you take or frame are stored on the device in `Pictures/Altitude`.
 
 <a id="zh"></a>
 
@@ -106,7 +106,7 @@ python3 tools/fetch_assets.py
 ./gradlew :app:assembleDebug
 ```
 
-调试 APK 位于 `app/build/outputs/apk/debug/Altitude-1.2.0-debug.apk`。
+调试 APK 位于 `app/build/outputs/apk/debug/Altitude-1.2.1-debug.apk`。
 
 在模拟器上注入椭球高，顺序是经度、纬度、米。拉萨附近大地水准面差距大约 −35 米，所以注入 3650 后，屏幕上的海平面高度大约是 3685 米：
 
@@ -118,18 +118,18 @@ adb emu geo fix 91.117 29.652 3650
 
 ### 版本与下载
 
-本树为 Android 1.2.0。调试 APK 以 GitHub 预发布的形式挂在 `v*-debug` 标签上：
+本树为 Android 1.2.1。调试 APK 以 GitHub 预发布的形式挂在 `v*-debug` 标签上：
 
 - [全部发布](https://github.com/sinonchum/altitude/releases)
 
 ### 数据来源与署名
 
 - **海平面高度。** GPS 椭球高用随包的 EGM96 15′ 网格换算（`app/src/main/assets/egm96-15.bin`，约 2 MB），来自 GeographicLib 的 `egm96-15.pgm`（NGA 公开数据）。Android 14 及以上在系统提供海平面高度时采用系统值。有气压计时，短时间的升降交给气压计，并由 GPS 校准。实时读数不需要网络。
-- **地名。** 在系统地理编码可用时显示。离线时这一行可以留空。
+- **地名。** 使用 [OpenStreetMap Nominatim](https://nominatim.openstreetmap.org/) 反向地理编码，语言与应用一致，最多每秒一次请求。User-Agent 为 `Altitude/<version> (https://github.com/sinonchum/altitude)`。地图数据 © [OpenStreetMap](https://www.openstreetmap.org/copyright) 贡献者。Nominatim 无法连接时，改用系统地理编码。
 - **字体。** [Outfit](https://github.com/Outfitio/Outfit-Fonts)，作者为 The Outfit Project Authors，采用 SIL Open Font License 1.1。许可见 [third_party/outfit/OFL.txt](third_party/outfit/OFL.txt)。中文使用系统无衬线字体。
 
 ### 隐私
 
 Altitude 没有账号，也不会上传轨迹。定位、相机和照片权限在使用对应功能时才会请求。
 
-实时海拔在手机上计算。解析地名时，系统地理编码可能会收到坐标。拍摄或加框的照片保存在设备上的 `Pictures/Altitude`。
+实时海拔在手机上计算。请求地名时会把坐标发给 Nominatim。拍摄或加框的照片保存在设备上的 `Pictures/Altitude`。
