@@ -26,10 +26,13 @@ minSdk 26，targetSdk 36。
 ## 构建与安装
 
 ```
+python3 tools/fetch_assets.py
 ./gradlew :app:testDebugUnitTest
 ./gradlew :app:assembleDebug
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
+
+`tools/fetch_assets.py` 补上三样东西：Outfit 字体、Gradle Wrapper、EGM96 网格。仓库里已经有这些文件时，脚本不会重新下载。
 
 调试包：`app/build/outputs/apk/debug/app-debug.apk`。
 
