@@ -3,7 +3,6 @@ package app.altitude.ui.display
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -27,9 +26,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -116,11 +120,11 @@ fun DisplayScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.safeDrawing)
                 .padding(horizontal = 28.dp)
-                .padding(top = 28.dp, bottom = 112.dp),
+                .padding(top = 56.dp, bottom = 76.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Spacer(Modifier.height(36.dp))
             Box(
                 modifier = Modifier
                     .size(7.dp)
@@ -179,21 +183,13 @@ fun DisplayScreen(
                 modifier = Modifier.fillMaxWidth(),
             )
             Spacer(Modifier.weight(1f))
-            if (!state.locationGranted) {
+            val guidance = state.locationGuidance()
+            if (guidance != null) {
                 Prompt(
-                    title = stringResource(R.string.prompt_location_permission_title),
-                    body = stringResource(R.string.prompt_location_permission_body),
-                    action = stringResource(R.string.prompt_location_permission_action),
-                    onAction = onRequestLocation,
-                    primary = palette.primary,
-                    secondary = palette.secondary,
-                )
-            } else if (!state.locationEnabled) {
-                Prompt(
-                    title = stringResource(R.string.prompt_location_disabled_title),
-                    body = stringResource(R.string.prompt_location_disabled_body),
-                    action = stringResource(R.string.prompt_location_disabled_action),
-                    onAction = onOpenLocationSettings,
+                    title = stringResource(guidance.title),
+                    body = stringResource(guidance.body),
+                    action = stringResource(guidance.action),
+                    onAction = if (guidance.opensLocationSettings) onOpenLocationSettings else onRequestLocation,
                     primary = palette.primary,
                     secondary = palette.secondary,
                 )
@@ -205,53 +201,52 @@ fun DisplayScreen(
             Spacer(Modifier.height(12.dp))
         }
 
-        AnimatedVisibility(
-            visible = chrome,
-            enter = fadeIn(tween(220)),
-            exit = fadeOut(tween(420, easing = FastOutSlowInEasing)),
-            modifier = Modifier.align(Alignment.TopCenter),
+        Row(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .windowInsetsPadding(
+                    WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal),
+                )
+                .padding(horizontal = 12.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 18.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                val brightnessDescription = stringResource(
-                    if (state.prefs.maxBrightness) R.string.cd_brightness_on else R.string.cd_brightness_off,
-                )
-                IconButton(onClick = { reveal(); onToggleBrightness() }) {
-                    Icon(
-                        Icons.Outlined.WbSunny,
-                        contentDescription = brightnessDescription,
-                        tint = if (state.prefs.maxBrightness) palette.accent else palette.secondary,
+            Box(Modifier.size(44.dp), contentAlignment = Alignment.Center) {
+                if (chrome) {
+                    val brightnessDescription = stringResource(
+                        if (state.prefs.maxBrightness) R.string.cd_brightness_on else R.string.cd_brightness_off,
                     )
+                    IconButton(onClick = { reveal(); onToggleBrightness() }) {
+                        Icon(
+                            Icons.Outlined.WbSunny,
+                            contentDescription = brightnessDescription,
+                            tint = if (state.prefs.maxBrightness) palette.accent else palette.secondary,
+                        )
+                    }
                 }
-                val unitDescription = stringResource(R.string.cd_unit_toggle, unitName)
-                Text(
-                    text = unitName,
-                    color = palette.primary,
-                    fontFamily = Outfit,
-                    fontWeight = FontWeight.Medium,
-                    fontSize = 14.sp,
-                    letterSpacing = 0.4.sp,
-                    maxLines = 1,
-                    softWrap = false,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(999.dp))
-                        .clickable { reveal(); onToggleUnit() }
-                        .padding(horizontal = 14.dp, vertical = 8.dp)
-                        .semantics { contentDescription = unitDescription },
-                )
-                IconButton(onClick = { reveal(); onOpenSettings() }) {
-                    Icon(
-                        Icons.Outlined.Settings,
-                        contentDescription = stringResource(R.string.cd_settings),
-                        tint = palette.secondary,
+            }
+            Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                if (chrome) {
+                    val unitDescription = stringResource(R.string.cd_unit_toggle, unitName)
+                    Text(
+                        text = unitName,
+                        color = palette.primary,
+                        fontFamily = Outfit,
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 14.sp,
+                        letterSpacing = 0.4.sp,
+                        maxLines = 1,
+                        softWrap = false,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(999.dp))
+                            .clickable { reveal(); onToggleUnit() }
+                            .padding(horizontal = 14.dp, vertical = 8.dp)
+                            .semantics { contentDescription = unitDescription },
                     )
                 }
             }
+            SettingsButton(onOpenSettings, palette.secondary, palette.primary)
         }
 
         AnimatedVisibility(
@@ -260,7 +255,10 @@ fun DisplayScreen(
             exit = fadeOut(tween(420)),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 28.dp),
+                .windowInsetsPadding(
+                    WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal),
+                )
+                .padding(bottom = 12.dp),
         ) {
             ModeSwitch(
                 mode = AppMode.DISPLAY,
@@ -599,6 +597,61 @@ private fun SwitchChip(
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 8.dp),
     )
+}
+
+internal data class LocationGuidanceCopy(
+    val title: Int,
+    val body: Int,
+    val action: Int,
+    val opensLocationSettings: Boolean,
+)
+
+internal fun AltitudeUiState.locationGuidance(): LocationGuidanceCopy? = when {
+    !locationGranted -> LocationGuidanceCopy(
+        R.string.prompt_location_permission_title,
+        R.string.prompt_location_permission_body,
+        R.string.prompt_location_permission_action,
+        false,
+    )
+    !locationPrecise -> LocationGuidanceCopy(
+        R.string.prompt_location_approximate_title,
+        R.string.prompt_location_approximate_body,
+        R.string.prompt_location_approximate_action,
+        false,
+    )
+    !locationEnabled -> LocationGuidanceCopy(
+        R.string.prompt_location_disabled_title,
+        R.string.prompt_location_disabled_body,
+        R.string.prompt_location_disabled_action,
+        true,
+    )
+    !gpsEnabled -> LocationGuidanceCopy(
+        R.string.prompt_gps_off_title,
+        R.string.prompt_gps_off_body,
+        R.string.prompt_gps_off_action,
+        true,
+    )
+    else -> null
+}
+
+@Composable
+private fun SettingsButton(
+    onOpenSettings: () -> Unit,
+    icon: androidx.compose.ui.graphics.Color,
+    plate: androidx.compose.ui.graphics.Color,
+) {
+    val description = stringResource(R.string.cd_settings)
+    Box(
+        modifier = Modifier
+            .size(44.dp)
+            .clip(CircleShape)
+            .background(plate.copy(alpha = 0.08f))
+            .semantics { contentDescription = description }
+            .clickable(onClick = onOpenSettings),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(Icons.Outlined.Settings, contentDescription = null, tint = icon)
+    }
 }
 
 @Composable

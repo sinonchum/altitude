@@ -42,7 +42,7 @@ class PhotoPipeline(private val context: Context) {
         longitude: Double?,
         altitudeMeters: Double?,
         epochMs: Long,
-    ): Unit = withContext(Dispatchers.IO) {
+    ): String = withContext(Dispatchers.IO) {
         val (bytes, rotation) = takeJpeg(imageCapture)
         val upright = decodeUpright(bytes, rotation)
         val stamped = WatermarkRenderer.render(upright, content, style, anchor)
@@ -159,7 +159,7 @@ class PhotoPipeline(private val context: Context) {
         exif.saveAttributes()
     }
 
-    private fun saveToGallery(file: File, displayName: String) {
+    private fun saveToGallery(file: File, displayName: String): String {
         val resolver = context.contentResolver
         val values = ContentValues().apply {
             put(MediaStore.Images.Media.DISPLAY_NAME, displayName)
@@ -185,6 +185,7 @@ class PhotoPipeline(private val context: Context) {
             val done = ContentValues().apply { put(MediaStore.Images.Media.IS_PENDING, 0) }
             resolver.update(uri, done, null, null)
         }
+        return uri.toString()
     }
 
     private fun displayName(epochMs: Long): String {

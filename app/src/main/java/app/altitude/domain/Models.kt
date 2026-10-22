@@ -55,6 +55,7 @@ data class GnssSample(
     val horizontalAccuracyMeters: Double?,
     val verticalAccuracyMeters: Double?,
     val timeMs: Long,
+    val elapsedRealtimeMs: Long = 0L,
 )
 
 data class FusionInput(

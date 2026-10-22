@@ -114,6 +114,33 @@
     <string name="error_gallery_write">无法写入相册</string>
     <string name="error_camera_open">相机打开失败</string>
 
+    <string name="prompt_location_approximate_title">只有模糊位置</string>
+    <string name="prompt_location_approximate_body">模糊位置到不了卫星。请改为精确位置，海拔才会更新。</string>
+    <string name="prompt_location_approximate_action">允许精确位置</string>
+    <string name="prompt_gps_off_title">卫星定位没开</string>
+    <string name="prompt_gps_off_body">系统定位开着，但 GPS 关着。打开卫星定位，高度才会进来。</string>
+    <string name="prompt_gps_off_action">去打开</string>
+
+    <string name="cd_last_photo">上一张照片</string>
+    <string name="gallery_title">照片</string>
+    <string name="gallery_empty">还没有照片。拍下的会出现在这里。</string>
+    <string name="gallery_share">分享</string>
+    <string name="gallery_delete">删除</string>
+    <string name="gallery_open">在系统相册中打开</string>
+    <string name="gallery_close">关闭</string>
+    <string name="gallery_delete_title">删除这张照片？</string>
+    <string name="gallery_delete_body">它会从 Pictures/Altitude 中移除。</string>
+    <string name="gallery_delete_confirm">删除</string>
+    <string name="gallery_delete_cancel">取消</string>
+    <string name="gallery_page">%1$d / %2$d</string>
+    <string name="cd_share_photo">分享照片</string>
+    <string name="cd_delete_photo">删除照片</string>
+    <string name="cd_open_gallery">在系统相册中查看</string>
+    <string name="cd_close_gallery">关闭照片</string>
+    <string name="error_share_failed">无法分享这张照片</string>
+    <string name="error_delete_failed">无法删除这张照片</string>
+    <string name="error_open_failed">无法打开这张照片</string>
+
     <string name="format_altitude">%1$s %2$s</string>
     <string name="format_accuracy">± %1$s %2$s</string>
     <string name="format_accuracy_source">%1$s   %2$s</string>
