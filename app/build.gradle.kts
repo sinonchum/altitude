@@ -5,6 +5,8 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+val altitudeVersionName = "1.1.1"
+
 android {
     namespace = "app.altitude"
     compileSdk = 37
@@ -13,8 +15,8 @@ android {
         applicationId = "app.altitude"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 3
+        versionName = altitudeVersionName
     }
 
     buildTypes {
@@ -34,6 +36,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     packaging {
@@ -51,6 +54,10 @@ android {
         abortOnError = true
         checkReleaseBuilds = true
     }
+}
+
+base {
+    archivesName.set("Altitude-$altitudeVersionName")
 }
 
 tasks.withType(Test::class.java).configureEach {

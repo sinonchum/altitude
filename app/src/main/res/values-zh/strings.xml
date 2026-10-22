@@ -93,6 +93,7 @@
     <string name="settings_dynamic_title">界面跟随系统配色</string>
     <string name="settings_dynamic_subtitle">只给设置里的按钮上色，不改亮屏和水印</string>
     <string name="settings_watermark_note">水印始终带上海拔、经纬度和时间。亮屏上的坐标可以单独关掉，避免拍屏幕时太满。</string>
+    <string name="settings_about_version">关于 / 版本 %1$s</string>
     <string name="toggle_on">开</string>
     <string name="toggle_off">关</string>
 

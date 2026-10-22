@@ -102,6 +102,7 @@
     <string name="settings_dynamic_title">Follow system colors</string>
     <string name="settings_dynamic_subtitle">Colors the controls in Settings only, not the display or the watermark</string>
     <string name="settings_watermark_note">The watermark always includes altitude, coordinates, and time. You can hide coordinates on the display so a photo of the screen stays uncluttered.</string>
+    <string name="settings_about_version">About / Version %1$s</string>
     <string name="toggle_on">On</string>
     <string name="toggle_off">Off</string>
 

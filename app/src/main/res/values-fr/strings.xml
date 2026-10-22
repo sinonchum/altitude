@@ -99,6 +99,7 @@
     <string name="settings_dynamic_title">Couleurs du système</string>
     <string name="settings_dynamic_subtitle">Colore seulement les commandes des réglages, pas l’écran ni le filigrane</string>
     <string name="settings_watermark_note">Le filigrane indique toujours l’altitude, les coordonnées et l’heure. Vous pouvez masquer les coordonnées sur l’écran pour qu’une photo de celui-ci reste lisible.</string>
+    <string name="settings_about_version">À propos / Version %1$s</string>
     <string name="toggle_on">Oui</string>
     <string name="toggle_off">Non</string>
 

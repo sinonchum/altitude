@@ -32,6 +32,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.altitude.BuildConfig
 import app.altitude.R
 import app.altitude.domain.AltitudeUnit
 import app.altitude.domain.DisplayTheme
@@ -156,6 +157,13 @@ fun SettingsSheet(prefs: PrefsSnapshot, viewModel: AltitudeViewModel) {
             color = Color(0xFF8E8A82),
             fontSize = 13.sp,
             lineHeight = 18.sp,
+        )
+        Spacer(Modifier.height(18.dp))
+        Text(
+            text = stringResource(R.string.settings_about_version, BuildConfig.VERSION_NAME),
+            color = Color(0xFF8E8A82),
+            fontFamily = Outfit,
+            fontSize = 13.sp,
         )
         Spacer(Modifier.height(28.dp))
     }
