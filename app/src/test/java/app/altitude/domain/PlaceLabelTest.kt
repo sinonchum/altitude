@@ -168,4 +168,66 @@ class PlaceLabelTest {
             ),
         )
     }
+
+    @Test
+    fun shigatsePayloadsUseTheCityNotTheSuburb() {
+        assertEquals("Shigatse", displayed(SHIGATSE_EN, "en"))
+        assertEquals("Shigatse", displayed(SHIGATSE_FR, "fr"))
+        assertEquals("日喀则市", displayed(SHIGATSE_ZH, "zh"))
+        assertEquals("日喀则市", displayed(SHIGATSE_ZH, "zh-CN"))
+    }
+
+    @Test
+    fun latinSiblingReplacesHanBeforeTransliteration() {
+        val address = mapOf(
+            "city" to "日喀则市",
+            "region" to "Shigatse Prefecture",
+            "state" to "Xizang",
+        )
+        assertEquals(
+            "Shigatse Prefecture",
+            osmLocalityName(name = "城南街道", address = address, addresstype = "suburb", languageTag = "en"),
+        )
+        assertEquals(
+            "Shigatse Prefecture",
+            osmLocalityName(name = "城南街道", address = address, addresstype = "suburb", languageTag = "fr"),
+        )
+        assertEquals(
+            "日喀则市",
+            osmLocalityName(name = "城南街道", address = address, addresstype = "suburb", languageTag = "zh"),
+        )
+        var transliterated = false
+        val english = choosePlaceLabel(
+            "en",
+            OsmLookup.Reached(
+                osmLocalityName(name = "城南街道", address = address, addresstype = "suburb", languageTag = "en"),
+            ),
+            "Ri Ka Ze Shi",
+        ) {
+            transliterated = true
+            "Chengnanjiedao"
+        }
+        assertEquals("Shigatse Prefecture", english)
+        assertFalse(transliterated)
+    }
+
+    private fun displayed(payload: String, language: String): String? {
+        var transliterated = false
+        val label = choosePlaceLabel(
+            language,
+            OsmLookup.Reached(nominatimLocality(payload, language)),
+            "Chengnan Subdistrict",
+        ) {
+            transliterated = true
+            "Chengnanjiedao"
+        }
+        assertFalse(transliterated)
+        return label
+    }
+
+    private companion object {
+        val SHIGATSE_EN = """{"place_id":241404443,"licence":"Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright","osm_type":"relation","osm_id":7699977,"lat":"29.2730757","lon":"88.8781083","category":"boundary","type":"administrative","place_rank":16,"importance":0.32221217881594816,"addresstype":"suburb","name":"Chengnan Subdistrict","display_name":"Chengnan Subdistrict, Shigatse, Samzhubzê District, Shigatse Prefecture, Xizang, China","address":{"suburb":"Chengnan Subdistrict","city":"Shigatse","district":"Samzhubzê District","region":"Shigatse Prefecture","state":"Xizang","ISO3166-2-lvl4":"CN-XZ","country":"China","country_code":"cn"},"boundingbox":["29.2243396","29.2788518","88.8717127","88.9107459"]}"""
+        val SHIGATSE_FR = """{"place_id":241660121,"licence":"Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright","osm_type":"relation","osm_id":7699977,"lat":"29.2730757","lon":"88.8781083","category":"boundary","type":"administrative","place_rank":16,"importance":0.32221217881594816,"addresstype":"suburb","name":"城南街道","display_name":"城南街道, Shigatse, District de Samdrubtsé, 日喀则市 གཞིས་ཀ་རྩེ་གྲོང་ཁྱེར།, Xizang, Chine","address":{"suburb":"城南街道","city":"Shigatse","district":"District de Samdrubtsé","region":"日喀则市 གཞིས་ཀ་རྩེ་གྲོང་ཁྱེར།","state":"Xizang","ISO3166-2-lvl4":"CN-XZ","country":"Chine","country_code":"cn"},"boundingbox":["29.2243396","29.2788518","88.8717127","88.9107459"]}"""
+        val SHIGATSE_ZH = """{"place_id":241633930,"licence":"Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright","osm_type":"relation","osm_id":7699977,"lat":"29.2730757","lon":"88.8781083","category":"boundary","type":"administrative","place_rank":16,"importance":0.32221217881594816,"addresstype":"suburb","name":"城南街道","display_name":"城南街道, 日喀则市, 桑珠孜区, 日喀则市, 西藏自治区, 中国","address":{"suburb":"城南街道","city":"日喀则市","district":"桑珠孜区","region":"日喀则市","state":"西藏自治区","ISO3166-2-lvl4":"CN-XZ","country":"中国","country_code":"cn"},"boundingbox":["29.2243396","29.2788518","88.8717127","88.9107459"]}"""
+    }
 }

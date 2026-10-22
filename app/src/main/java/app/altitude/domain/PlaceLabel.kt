@@ -13,27 +13,22 @@ sealed class OsmLookup {
     data object Unreachable : OsmLookup()
 }
 
-private val ADDRESS_KEYS = listOf(
+private val SETTLEMENT_KEYS = listOf(
     "city",
     "town",
     "village",
     "municipality",
     "hamlet",
-    "suburb",
+)
+
+private val ADMIN_KEYS = listOf(
     "county",
+    "district",
+    "region",
     "state",
 )
 
-private val LOCALITY_TYPES = setOf(
-    "city",
-    "town",
-    "village",
-    "municipality",
-    "hamlet",
-    "suburb",
-    "county",
-    "state",
-    "administrative",
+private val NATURAL_TYPES = setOf(
     "peak",
     "island",
     "water",
@@ -66,25 +61,51 @@ fun containsHan(text: String): Boolean {
 }
 
 /**
- * Short locality from a Nominatim reverse payload.
- * The object's own name wins for a city, town, or similar result.
- * A road or building falls through to the enclosing locality.
+ * Settlement from a Nominatim reverse payload.
+ * City, town, village, municipality, then hamlet come before county, district, region, and state.
+ * Suburb, neighbourhood, quarter, road, and building names are ignored.
+ * The object's own name is used only for a peak, island, water, or other natural feature.
+ * In English or French, a Latin name at the same or next level replaces a Han one.
  */
 fun osmLocalityName(
     name: String?,
     address: Map<String, String>,
     addresstype: String? = null,
     displayName: String? = null,
+    languageTag: String = "en",
 ): String? {
-    val objectName = name?.trim()?.takeIf { it.isNotEmpty() }
-    val fromAddress = ADDRESS_KEYS.firstNotNullOfOrNull { key ->
+    if (addresstype in NATURAL_TYPES) {
+        name?.trim()?.takeIf { it.isNotEmpty() }?.let { return it }
+    }
+    val candidates = (SETTLEMENT_KEYS + ADMIN_KEYS).mapNotNull { key ->
         address[key]?.trim()?.takeIf { it.isNotEmpty() }
     }
-    val specificPlace = addresstype.isNullOrBlank() || addresstype in LOCALITY_TYPES
-    if (specificPlace && objectName != null) return objectName
-    if (fromAddress != null) return fromAddress
-    if (objectName != null) return objectName
-    return displayName?.substringBefore(',')?.trim()?.takeIf { it.isNotEmpty() }
+    val chosen = candidates.firstOrNull() ?: return displayName
+        ?.substringBefore(',')
+        ?.trim()
+        ?.takeIf { it.isNotEmpty() }
+    if (requestsLatinPlaceName(languageTag) && containsHan(chosen)) {
+        candidates.firstOrNull(::isLatinName)?.let { return it }
+    }
+    return chosen
+}
+
+/** Locality from a Nominatim reverse JSON body. Malformed JSON throws. */
+fun nominatimLocality(body: String, languageTag: String): String? {
+    val root = JsonReader(body).parseValue() as? Map<*, *> ?: return null
+    if ("error" in root) return null
+    val address = (root["address"] as? Map<*, *>)?.entries?.mapNotNull { (key, value) ->
+        val field = key as? String ?: return@mapNotNull null
+        val text = value as? String ?: return@mapNotNull null
+        if (text.isBlank()) null else field to text
+    }?.toMap().orEmpty()
+    return osmLocalityName(
+        name = root["name"] as? String,
+        address = address,
+        addresstype = root["addresstype"] as? String,
+        displayName = root["display_name"] as? String,
+        languageTag = languageTag,
+    )
 }
 
 /**
@@ -178,4 +199,149 @@ private fun isPinyinSyllable(token: String): Boolean {
     val letters = token.trim('\'', '’', '.')
     if (letters.isEmpty() || letters.any { !it.isLetter() }) return false
     return PINYIN_SYLLABLE.matches(letters)
+}
+
+private fun isLatinName(text: String): Boolean {
+    var letters = 0
+    for (char in text) {
+        if (!char.isLetter()) continue
+        letters++
+        val block = Character.UnicodeBlock.of(char)
+        if (
+            block != Character.UnicodeBlock.BASIC_LATIN &&
+            block != Character.UnicodeBlock.LATIN_1_SUPPLEMENT &&
+            block != Character.UnicodeBlock.LATIN_EXTENDED_A &&
+            block != Character.UnicodeBlock.LATIN_EXTENDED_B &&
+            block != Character.UnicodeBlock.LATIN_EXTENDED_ADDITIONAL
+        ) {
+            return false
+        }
+    }
+    return letters > 0
+}
+
+private class JsonReader(private val text: String) {
+    private var index = 0
+
+    fun parseValue(): Any? {
+        skip()
+        if (index >= text.length) throw IllegalArgumentException("Unexpected end of JSON")
+        return when (val char = text[index]) {
+            '{' -> parseObject()
+            '[' -> parseArray()
+            '"' -> parseString()
+            't' -> literal("true", true)
+            'f' -> literal("false", false)
+            'n' -> literal("null", null)
+            '-', in '0'..'9' -> parseNumber()
+            else -> throw IllegalArgumentException("Unexpected '$char'")
+        }
+    }
+
+    private fun parseObject(): Map<String, Any?> {
+        index++
+        val values = linkedMapOf<String, Any?>()
+        skip()
+        if (consume('}')) return values
+        while (true) {
+            skip()
+            val key = parseString()
+            skip()
+            consumeOrFail(':')
+            values[key] = parseValue()
+            skip()
+            when {
+                consume(',') -> continue
+                consume('}') -> return values
+                else -> throw IllegalArgumentException("Expected ',' or '}'")
+            }
+        }
+    }
+
+    private fun parseArray(): List<Any?> {
+        index++
+        val values = mutableListOf<Any?>()
+        skip()
+        if (consume(']')) return values
+        while (true) {
+            values += parseValue()
+            skip()
+            when {
+                consume(',') -> continue
+                consume(']') -> return values
+                else -> throw IllegalArgumentException("Expected ',' or ']'")
+            }
+        }
+    }
+
+    private fun parseString(): String {
+        consumeOrFail('"')
+        val out = StringBuilder()
+        while (index < text.length) {
+            when (val char = text[index++]) {
+                '"' -> return out.toString()
+                '\\' -> out.append(escape())
+                else -> out.append(char)
+            }
+        }
+        throw IllegalArgumentException("Unclosed string")
+    }
+
+    private fun escape(): Char {
+        if (index >= text.length) throw IllegalArgumentException("Bad escape")
+        return when (val char = text[index++]) {
+            '"', '\\', '/' -> char
+            'b' -> '\b'
+            'f' -> '\u000C'
+            'n' -> '\n'
+            'r' -> '\r'
+            't' -> '\t'
+            'u' -> {
+                if (index + 4 > text.length) throw IllegalArgumentException("Bad unicode escape")
+                val code = text.substring(index, index + 4).toInt(16)
+                index += 4
+                code.toChar()
+            }
+            else -> throw IllegalArgumentException("Bad escape")
+        }
+    }
+
+    private fun parseNumber(): String {
+        val start = index
+        if (text[index] == '-') index++
+        while (index < text.length && text[index].isDigit()) index++
+        if (index < text.length && text[index] == '.') {
+            index++
+            while (index < text.length && text[index].isDigit()) index++
+        }
+        if (index < text.length && (text[index] == 'e' || text[index] == 'E')) {
+            index++
+            if (index < text.length && (text[index] == '+' || text[index] == '-')) index++
+            while (index < text.length && text[index].isDigit()) index++
+        }
+        if (start == index) throw IllegalArgumentException("Bad number")
+        return text.substring(start, index)
+    }
+
+    private fun literal(token: String, value: Any?): Any? {
+        if (!text.startsWith(token, index)) throw IllegalArgumentException("Expected $token")
+        index += token.length
+        return value
+    }
+
+    private fun skip() {
+        while (index < text.length && text[index].isWhitespace()) index++
+    }
+
+    private fun consume(char: Char): Boolean {
+        if (index < text.length && text[index] == char) {
+            index++
+            return true
+        }
+        return false
+    }
+
+    private fun consumeOrFail(char: Char) {
+        if (!consume(char)) throw IllegalArgumentException("Expected '$char'")
+    }
 }

@@ -11,7 +11,7 @@ import app.altitude.domain.choosePlaceLabel
 import app.altitude.domain.formatCoordinateQuery
 import app.altitude.domain.millisUntilNextPlaceRequest
 import app.altitude.domain.nominatimAcceptLanguage
-import app.altitude.domain.osmLocalityName
+import app.altitude.domain.nominatimLocality
 import app.altitude.domain.placeCacheKey
 import java.net.HttpURLConnection
 import java.net.URL
@@ -26,7 +26,6 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
-import org.json.JSONObject
 import kotlin.coroutines.resume
 
 private const val NOMINATIM_URL = "https://nominatim.openstreetmap.org/reverse"
@@ -99,7 +98,7 @@ private fun fetchOsm(latitude: Double, longitude: Double, acceptLanguage: String
         val code = connection.responseCode
         if (code !in 200..299) return OsmLookup.Unreachable
         val body = connection.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
-        OsmLookup.Reached(parseOsmLocality(body))
+        OsmLookup.Reached(nominatimLocality(body, acceptLanguage))
     } catch (cancel: CancellationException) {
         throw cancel
     } catch (_: Exception) {
@@ -107,28 +106,6 @@ private fun fetchOsm(latitude: Double, longitude: Double, acceptLanguage: String
     } finally {
         connection.disconnect()
     }
-}
-
-private fun parseOsmLocality(body: String): String? {
-    val json = JSONObject(body)
-    if (json.has("error")) return null
-    val addressJson = json.optJSONObject("address")
-    val address = buildMap {
-        if (addressJson != null) {
-            val keys = addressJson.keys()
-            while (keys.hasNext()) {
-                val key = keys.next()
-                val value = addressJson.optString(key)
-                if (value.isNotBlank()) put(key, value)
-            }
-        }
-    }
-    return osmLocalityName(
-        name = json.optString("name"),
-        address = address,
-        addresstype = json.optString("addresstype").takeIf { it.isNotBlank() },
-        displayName = json.optString("display_name").takeIf { it.isNotBlank() },
-    )
 }
 
 private suspend fun lookupGeocoder(
