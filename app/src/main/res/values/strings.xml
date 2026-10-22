@@ -109,6 +109,13 @@
     <string name="camera_permission_title">The camera is still closed</string>
     <string name="camera_permission_body">The altitude display works without it. To write height and coordinates into a photo, allow the camera.</string>
     <string name="camera_permission_action">Allow camera</string>
+    <string name="zoom_ratio">%1$s×</string>
+    <string name="cd_zoom_preset">Set zoom to %1$s</string>
+    <string name="cd_zoom_slider">Zoom</string>
+    <string name="cd_camera_preview">Camera preview. Pinch to zoom. Tap to focus. Press and hold to lock focus.</string>
+    <string name="cd_exposure">Exposure compensation</string>
+    <string name="cd_focus_target">Focus point</string>
+    <string name="focus_locked">Locked</string>
     <string name="watermark_light">White</string>
     <string name="watermark_dark">Black</string>
     <string name="watermark_mount">Frame</string>

@@ -106,6 +106,13 @@
     <string name="camera_permission_title">L’appareil photo est fermé</string>
     <string name="camera_permission_body">L’écran d’altitude fonctionne sans lui. Pour inscrire la hauteur et les coordonnées dans une photo, autorisez l’appareil photo.</string>
     <string name="camera_permission_action">Autoriser l’appareil photo</string>
+    <string name="zoom_ratio">%1$s×</string>
+    <string name="cd_zoom_preset">Régler le zoom sur %1$s</string>
+    <string name="cd_zoom_slider">Zoom</string>
+    <string name="cd_camera_preview">Aperçu. Pincez pour zoomer. Touchez pour faire la mise au point. Maintenez pour la verrouiller.</string>
+    <string name="cd_exposure">Correction d’exposition</string>
+    <string name="cd_focus_target">Point de mise au point</string>
+    <string name="focus_locked">Verrouillé</string>
     <string name="watermark_light">Fond blanc</string>
     <string name="watermark_dark">Fond noir</string>
     <string name="watermark_mount">Cadre</string>
