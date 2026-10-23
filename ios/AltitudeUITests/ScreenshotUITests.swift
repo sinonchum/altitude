@@ -133,6 +133,14 @@ final class ScreenshotUITests: XCTestCase {
         try assertImport(fixture: "portrait", language: "en", landscape: true, file: "import-portrait-photo-landscape")
     }
 
+    func testImportPortraitPhotoChinese() throws {
+        try assertImport(fixture: "portrait", language: "zh", landscape: false, file: "import-portrait-photo-zh")
+    }
+
+    func testImportPortraitPhotoFrench() throws {
+        try assertImport(fixture: "portrait", language: "fr", landscape: false, file: "import-portrait-photo-fr")
+    }
+
     func testImportLandscapePhotoPortrait() throws {
         try assertImport(fixture: "landscape", language: "en", landscape: false, file: "import-landscape-photo")
     }

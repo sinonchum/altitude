@@ -118,6 +118,17 @@ jobs:
             -test-iterations 2 \
             | tee ios/build/xcodebuild.log
 
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-xcresult
+          path: |
+            ios/build/TestResults.xcresult
+            ios/build/xcodebuild.log
+            ios/build/xcodebuild-build.log
+          if-no-files-found: warn
+
       - name: Package the simulator app
         if: always()
         run: |
@@ -203,6 +214,8 @@ jobs:
               "import-entry-landscape",
               "import-portrait-photo",
               "import-portrait-photo-landscape",
+              "import-portrait-photo-zh",
+              "import-portrait-photo-fr",
               "import-landscape-photo",
               "import-landscape-photo-landscape",
               "import-nogps",
@@ -234,7 +247,7 @@ jobs:
           echo "screenshot directory:"
           find ios/build/screenshots -name '*.png' -print
           missing=0
-          for name in display-en settings-en settings-zh settings-fr camera-portrait-back camera-portrait-front camera-landscape-back camera-landscape-front import-entry import-entry-landscape import-portrait-photo import-portrait-photo-landscape import-landscape-photo import-landscape-photo-landscape import-nogps import-nogps-landscape import-nogps-zh import-nogps-fr import-nogps-fr-landscape import-computed import-computed-landscape; do
+          for name in display-en settings-en settings-zh settings-fr camera-portrait-back camera-portrait-front camera-landscape-back camera-landscape-front import-entry import-entry-landscape import-portrait-photo import-portrait-photo-landscape import-portrait-photo-zh import-portrait-photo-fr import-landscape-photo import-landscape-photo-landscape import-nogps import-nogps-landscape import-nogps-zh import-nogps-fr import-nogps-fr-landscape import-computed import-computed-landscape; do
             if [ ! -f "ios/build/screenshots/${name}.png" ]; then
               echo "missing ${name}.png"
               missing=1
@@ -250,17 +263,6 @@ jobs:
         with:
           name: ios-screenshots
           path: ios/build/screenshots/*.png
-          if-no-files-found: warn
-
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ios-xcresult
-          path: |
-            ios/build/TestResults.xcresult
-            ios/build/xcodebuild.log
-            ios/build/xcodebuild-build.log
           if-no-files-found: warn
 
       - name: Upload unsigned builds
