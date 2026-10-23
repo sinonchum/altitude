@@ -51,6 +51,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChanged
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
@@ -208,61 +209,141 @@ fun ZoomControls(
     linear: Float,
     onRatio: (Float) -> Unit,
     onLinear: (Float) -> Unit,
+    modifier: Modifier = Modifier,
+    vertical: Boolean = false,
+    showSlider: Boolean = true,
 ) {
     val locale = LocalResources.current.configuration.locales[0]
     val presets = CameraZoom.presetsWithin(min, max)
     val adjustable = max - min > 0.05f
     if (presets.isEmpty() && !adjustable) return
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-        if (presets.isNotEmpty()) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                presets.forEach { preset ->
-                    val number = CameraZoom.formatZoomNumber(preset, locale)
-                    val label = stringResource(R.string.zoom_ratio, number)
-                    val description = stringResource(R.string.cd_zoom_preset, label)
-                    val selected = CameraZoom.matchesPreset(ratio, preset)
-                    Text(
-                        text = label,
-                        color = if (selected) Color.Black else Color.White,
-                        fontFamily = Outfit,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 13.sp,
-                        maxLines = 1,
-                        softWrap = false,
-                        modifier = Modifier
-                            .clip(CircleShape)
-                            .background(if (selected) Color.White else Color.White.copy(alpha = 0.16f))
-                            .semantics { contentDescription = description }
-                            .clickable { onRatio(preset) }
-                            .padding(horizontal = 10.dp, vertical = 6.dp),
-                    )
-                }
+    if (vertical) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically),
+            modifier = modifier,
+        ) {
+            presets.forEach { preset ->
+                ZoomPresetChip(preset, ratio, locale, onRatio)
+            }
+            if (showSlider && adjustable) {
+                VerticalZoomSlider(linear, onLinear)
             }
         }
-        if (adjustable) {
-            val sliderDescription = stringResource(R.string.cd_zoom_slider)
-            Slider(
-                value = linear.coerceIn(0f, 1f),
-                onValueChange = onLinear,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 28.dp)
-                    .semantics { contentDescription = sliderDescription },
-                colors = SliderDefaults.colors(
-                    thumbColor = Color.White,
-                    activeTrackColor = Color.White,
-                    inactiveTrackColor = Color.White.copy(alpha = 0.28f),
-                ),
-            )
+    } else {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = modifier.fillMaxWidth()) {
+            if (presets.isNotEmpty()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    presets.forEach { preset ->
+                        ZoomPresetChip(preset, ratio, locale, onRatio)
+                    }
+                }
+            }
+            if (showSlider && adjustable) {
+                HorizontalZoomSlider(
+                    linear = linear,
+                    onLinear = onLinear,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 28.dp),
+                )
+            }
         }
     }
 }
+
+@Composable
+private fun ZoomPresetChip(
+    preset: Float,
+    ratio: Float,
+    locale: java.util.Locale,
+    onRatio: (Float) -> Unit,
+) {
+    val number = CameraZoom.formatZoomNumber(preset, locale)
+    val label = stringResource(R.string.zoom_ratio, number)
+    val description = stringResource(R.string.cd_zoom_preset, label)
+    val selected = CameraZoom.matchesPreset(ratio, preset)
+    Text(
+        text = label,
+        color = if (selected) Color.Black else Color.White,
+        fontFamily = Outfit,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 13.sp,
+        maxLines = 1,
+        softWrap = false,
+        modifier = Modifier
+            .clip(CircleShape)
+            .background(if (selected) Color.White else Color.White.copy(alpha = 0.16f))
+            .semantics { contentDescription = description }
+            .clickable { onRatio(preset) }
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+    )
+}
+
+@Composable
+private fun HorizontalZoomSlider(
+    linear: Float,
+    onLinear: (Float) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val sliderDescription = stringResource(R.string.cd_zoom_slider)
+    Slider(
+        value = linear.coerceIn(0f, 1f),
+        onValueChange = onLinear,
+        modifier = modifier.semantics { contentDescription = sliderDescription },
+        colors = SliderDefaults.colors(
+            thumbColor = Color.White,
+            activeTrackColor = Color.White,
+            inactiveTrackColor = Color.White.copy(alpha = 0.28f),
+        ),
+    )
+}
+
+@Composable
+internal fun VerticalZoomSlider(linear: Float, onLinear: (Float) -> Unit) {
+    val sliderDescription = stringResource(R.string.cd_zoom_slider)
+    Box(
+        modifier = Modifier.size(width = 36.dp, height = 148.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Slider(
+            value = linear.coerceIn(0f, 1f),
+            onValueChange = onLinear,
+            modifier = Modifier
+                .width(148.dp)
+                .verticalSlider()
+                .semantics { contentDescription = sliderDescription },
+            colors = SliderDefaults.colors(
+                thumbColor = Color.White,
+                activeTrackColor = Color.White,
+                inactiveTrackColor = Color.White.copy(alpha = 0.28f),
+            ),
+        )
+    }
+}
+
+private fun Modifier.verticalSlider(): Modifier = layout { measurable, constraints ->
+    val placeable = measurable.measure(
+        androidx.compose.ui.unit.Constraints(
+            minWidth = constraints.minHeight,
+            maxWidth = constraints.maxHeight,
+            minHeight = constraints.minWidth,
+            maxHeight = constraints.maxWidth,
+        ),
+    )
+    layout(placeable.height, placeable.width) {
+        placeable.place(
+            x = (placeable.height - placeable.width) / 2,
+            y = (placeable.width - placeable.height) / 2,
+        )
+    }
+}.graphicsLayer { rotationZ = -90f }
 
 @Composable
 fun ZoomReadout(ratio: Float, modifier: Modifier = Modifier) {

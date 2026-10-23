@@ -108,3 +108,33 @@ class CameraCaptureTest {
         assertNull(Autofocus.tapFlags(autofocus = true) { false })
     }
 }
+
+class CameraStageMetricsTest {
+    @Test
+    fun landscapePreviewFillsMostOfTheScreen() {
+        val style = WatermarkStyle.PLATE_LIGHT
+        for ((width, height) in listOf(891f to 411f, 800f to 360f, 640f to 360f)) {
+            val fraction = CameraStageMetrics.landscapePreviewFraction(
+                screenWidth = width,
+                screenHeight = height,
+                zoomVisible = true,
+                photoAspect = 4f / 3f,
+                style = style,
+                hasPlace = false,
+            )
+            assertTrue(
+                "preview fraction $fraction on ${width}x$height",
+                fraction >= CameraStageMetrics.MIN_LANDSCAPE_PREVIEW_FRACTION,
+            )
+        }
+    }
+
+    @Test
+    fun shutterStaysOnThePhysicalBottomEdge() {
+        assertTrue(CameraStageMetrics.shutterOnEnd(1))
+        assertTrue(CameraStageMetrics.shutterOnEnd(0))
+        assertFalse(CameraStageMetrics.shutterOnEnd(CameraStageMetrics.ROTATION_270))
+        assertFalse(CameraStageMetrics.isLandscape(411f, 891f))
+        assertTrue(CameraStageMetrics.isLandscape(891f, 411f))
+    }
+}

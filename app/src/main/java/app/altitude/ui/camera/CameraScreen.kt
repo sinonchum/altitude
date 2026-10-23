@@ -85,6 +85,7 @@ import app.altitude.R
 import app.altitude.domain.AppMode
 import app.altitude.domain.CameraLens
 import app.altitude.domain.CameraLenses
+import app.altitude.domain.CameraStageMetrics
 import app.altitude.domain.CaptionAnchor
 import app.altitude.domain.CaptureOrientation
 import app.altitude.domain.DevicePose
@@ -263,400 +264,169 @@ fun CameraScreen(
         }
     }
 
-    val settingsDescription = stringResource(R.string.cd_settings)
-    val screenFlashDescription = stringResource(
-        if (state.prefs.screenFlash) R.string.cd_screen_flash_on else R.string.cd_screen_flash_off,
-    )
     val latestPhoto = state.photos.firstOrNull()
+    val guidance = state.locationGuidance()
+    val chrome = CameraChromeState(
+        cameraGranted = state.cameraGranted,
+        shutterOnEnd = CameraStageMetrics.shutterOnEnd(displayRotation),
+        lensFront = lens == CameraLens.FRONT,
+        showLensButton = showLensButton,
+        showScreenFlash = lens == CameraLens.FRONT,
+        screenFlashOn = state.prefs.screenFlash,
+        busy = busy,
+        upright = upright,
+        lensSpin = lensSpin,
+        zoomVisible = boundCamera != null && zoomMax > zoomMin,
+        zoomRatio = zoomRatio,
+        zoomMin = zoomMin,
+        zoomMax = zoomMax,
+        linearZoom = linearZoom,
+        zoomAdjusting = zoomHud,
+        style = state.prefs.watermarkStyle,
+        anchor = state.prefs.captionAnchor,
+        hasPlace = content.place != null,
+        guidance = guidance,
+        saveMessage = if (state.galleryOpen) null else state.saveMessage,
+    )
     Box(Modifier.fillMaxSize().background(Color.Black)) {
-        Column(
-            Modifier
-                .fillMaxSize()
-                .windowInsetsPadding(WindowInsets.safeDrawing),
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Box(Modifier.graphicsLayer { rotationZ = upright }) {
-                    ModeSwitch(
-                        mode = AppMode.CAMERA,
-                        primary = Color.White,
-                        secondary = Color(0xFFB7B7B2),
-                        background = Color.White.copy(alpha = 0.08f),
-                        onMode = onMode,
-                    )
-                }
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    if (lens == CameraLens.FRONT) {
-                        val flashOn = state.prefs.screenFlash
-                        Box(
-                            modifier = Modifier
-                                .size(44.dp)
-                                .graphicsLayer { rotationZ = upright }
-                                .clip(CircleShape)
-                                .background(if (flashOn) Color.White else Color.White.copy(alpha = 0.08f))
-                                .semantics { contentDescription = screenFlashDescription }
-                                .clickable(enabled = !busy) { onScreenFlash(!flashOn) },
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(
-                                if (flashOn) Icons.Outlined.FlashOn else Icons.Outlined.FlashOff,
-                                contentDescription = null,
-                                tint = if (flashOn) Color.Black else Color(0xFFB7B7B2),
-                            )
-                        }
-                    }
-                    Box(
-                        modifier = Modifier
-                            .size(44.dp)
-                            .graphicsLayer { rotationZ = upright }
-                            .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.08f))
-                            .semantics { contentDescription = settingsDescription }
-                            .clickable(onClick = onOpenSettings),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            Icons.Outlined.Settings,
-                            contentDescription = null,
-                            tint = Color(0xFFB7B7B2),
+        CameraStage(
+            state = chrome,
+            onMode = onMode,
+            onStyle = onStyle,
+            onAnchor = onAnchor,
+            onToggleLens = {
+                lensTurns += 180f
+                onFrontCamera(lens != CameraLens.FRONT)
+            },
+            onToggleFlash = { onScreenFlash(!state.prefs.screenFlash) },
+            onOpenSettings = onOpenSettings,
+            onShutter = {
+                context.captureTick()
+                imageCapture.targetRotation = captureRotation
+                busy = true
+                scope.launch {
+                    val captured = runCatching {
+                        pipeline.capture(
+                            imageCapture = imageCapture,
+                            content = content,
+                            style = state.prefs.watermarkStyle,
+                            anchor = state.prefs.captionAnchor,
+                            latitude = state.latitude,
+                            longitude = state.longitude,
+                            altitudeMeters = state.reading.altitudeMslMeters?.takeIf { state.reading.absoluteMsl },
+                            epochMs = state.nowMillis,
                         )
                     }
-                }
-            }
-            Box(Modifier.weight(1f).fillMaxWidth()) {
-        if (!state.cameraGranted) {
-            Column(
-                modifier = Modifier.fillMaxSize().padding(24.dp),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Text(
-                    stringResource(R.string.camera_permission_title),
-                    color = Color.White,
-                    fontFamily = Outfit,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 22.sp,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                )
-                Spacer(Modifier.height(10.dp))
-                Text(
-                    stringResource(R.string.camera_permission_body),
-                    color = Color(0xFFB7B7B2),
-                    fontSize = 15.sp,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                    lineHeight = 22.sp,
-                )
-                Spacer(Modifier.height(22.dp))
-                Text(
-                    stringResource(R.string.camera_permission_action),
-                    color = Color.Black,
-                    fontFamily = Outfit,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(999.dp))
-                        .background(Color.White)
-                        .clickable(onClick = onRequestCamera)
-                        .padding(horizontal = 18.dp, vertical = 12.dp),
-                )
-            }
-        } else {
-            BoxWithConstraints(Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp)) {
-                val density = LocalDensity.current
-                val portrait = maxHeight > maxWidth
-                val aspect = if (portrait) 3f / 4f else 4f / 3f
-                val fit = with(density) {
-                    WatermarkMetrics.fitFrame(
-                        availWidth = maxWidth.toPx(),
-                        availHeight = maxHeight.toPx(),
-                        photoAspect = aspect,
-                        style = state.prefs.watermarkStyle,
-                        hasPlace = content.place != null,
+                    val message = captured.fold(
+                        onSuccess = { R.string.save_success },
+                        onFailure = { error ->
+                            (error as? CaptureException)?.messageRes ?: R.string.error_save_failed
+                        },
                     )
+                    onSaved(message, captured.getOrNull())
+                    busy = false
                 }
-                val photoW = with(density) { fit.photoWidth.toDp() }
-                val photoH = with(density) { fit.photoHeight.toDp() }
-                val side = with(density) { fit.side.toDp() }
-                val top = with(density) { fit.top.toDp() }
-                val bottom = with(density) { fit.bottom.toDp() }
-                val frameColor = if (state.prefs.watermarkStyle == WatermarkStyle.PLATE_DARK) Color(0xFF0A0A0A) else Color.White
-                BindCamera(
-                    previewView = previewView,
-                    imageCapture = imageCapture,
-                    front = lens == CameraLens.FRONT,
-                    rotation = captureRotation,
-                    lifecycleOwner = LocalLifecycleOwner.current,
-                    onError = { cameraError = it },
-                    onCamera = { boundCamera = it },
-                    onLenses = { back, front ->
-                        backLens = back
-                        frontLens = front
-                    },
-                )
-                Column(
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .width(photoW + side * 2)
-                        .background(if (state.prefs.watermarkStyle == WatermarkStyle.CAPTION) Color.Black else frameColor),
-                ) {
-                    if (state.prefs.watermarkStyle == WatermarkStyle.MOUNT) {
-                        Spacer(Modifier.height(top).fillMaxWidth())
-                    }
-                    Box(
-                        modifier = Modifier
-                            .padding(horizontal = side)
-                            .size(photoW, photoH)
-                            .background(Color.Black),
-                    ) {
-                        AndroidView(factory = { previewView }, modifier = Modifier.fillMaxSize())
-                        AndroidView(factory = { screenFlashView }, modifier = Modifier.fillMaxSize())
-                        if (state.prefs.watermarkStyle == WatermarkStyle.CAPTION) {
-                            AndroidView(
-                                modifier = Modifier.fillMaxSize(),
-                                factory = { SignatureView(it) },
-                                update = { view ->
-                                    view.mode = SignatureMode.CAPTION
-                                    view.anchor = state.prefs.captionAnchor
-                                    view.content = content
-                                    view.metricPx = min(fit.photoWidth, fit.photoHeight)
-                                    view.invalidate()
-                                },
-                            )
-                        }
-                        cameraError?.let { messageRes ->
-                            Text(
-                                text = stringResource(messageRes),
-                                color = Color.White,
-                                modifier = Modifier.align(Alignment.Center).padding(16.dp),
-                                fontSize = 13.sp,
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                            )
-                        }
-                        PreviewGestures(
-                            previewView = previewView,
-                            camera = boundCamera,
-                            autofocus = autofocus,
-                            zoomRatio = zoomRatio,
-                            zoomMin = zoomMin,
-                            zoomMax = zoomMax,
-                            onZoomRatio = { next ->
-                                zoomRatio = next
-                                boundCamera?.cameraControl?.setZoomRatio(next)
-                            },
-                            onPinch = { zoomHudToken += 1 },
-                        )
-                        if (zoomHud) {
-                            ZoomReadout(ratio = zoomRatio, modifier = Modifier.align(Alignment.Center))
-                        }
-                        if (lensCover.value > 0.01f) {
-                            Box(
-                                Modifier
-                                    .fillMaxSize()
-                                    .background(Color.Black.copy(alpha = lensCover.value)),
-                            )
-                        }
-                    }
-                    if (state.prefs.watermarkStyle != WatermarkStyle.CAPTION) {
-                        AndroidView(
-                            modifier = Modifier
-                                .padding(horizontal = side)
-                                .width(photoW)
-                                .height(bottom),
-                            factory = { SignatureView(it) },
-                            update = { view ->
-                                view.mode = SignatureMode.PLATE
-                                view.dark = state.prefs.watermarkStyle == WatermarkStyle.PLATE_DARK
-                                view.content = content
-                                view.metricPx = min(fit.photoWidth, fit.photoHeight)
-                                view.invalidate()
-                            },
-                        )
-                    }
-                }
-            }
-        }
-                val message = state.saveMessage
-                if (message != null && !state.galleryOpen) {
-                    Text(
-                        text = stringResource(message),
-                        color = Color(0xFF141414),
-                        fontFamily = Outfit,
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 14.sp,
-                        modifier = Modifier
-                            .align(Alignment.TopCenter)
-                            .padding(top = 8.dp)
-                            .clip(RoundedCornerShape(999.dp))
-                            .background(Color(0xFFF4F1EA))
-                            .padding(horizontal = 16.dp, vertical = 10.dp),
-                    )
-                }
-            }
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            val guidance = state.locationGuidance()
-            if (guidance != null) {
-                Text(
-                    text = stringResource(guidance.title),
-                    color = Color.White,
-                    fontFamily = Outfit,
-                    fontWeight = FontWeight.Medium,
-                    fontSize = 14.sp,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                    modifier = Modifier.padding(horizontal = 24.dp),
-                )
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    text = stringResource(guidance.action),
-                    color = Color.Black,
-                    fontFamily = Outfit,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 14.sp,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(999.dp))
-                        .background(Color.White)
-                        .clickable {
-                            if (guidance.opensLocationSettings) onOpenLocationSettings() else onRequestLocation()
-                        }
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                )
-                Spacer(Modifier.height(10.dp))
-            }
-            if (boundCamera != null && zoomMax > zoomMin) {
-                Box(Modifier.graphicsLayer { rotationZ = upright }) {
-                ZoomControls(
-                    ratio = zoomRatio,
-                    min = zoomMin,
-                    max = zoomMax,
-                    linear = linearZoom,
-                    onRatio = { preset ->
-                        zoomRatio = preset
-                        boundCamera?.cameraControl?.setZoomRatio(preset)
-                        zoomHudToken += 1
-                    },
-                    onLinear = { value ->
-                        linearZoom = value
-                        boundCamera?.cameraControl?.setLinearZoom(value)
-                        zoomHudToken += 1
-                    },
-                )
-                Spacer(Modifier.height(8.dp))
-                }
-            }
-            Box(Modifier.graphicsLayer { rotationZ = upright }) {
-                StyleRow(state.prefs.watermarkStyle, onStyle)
-            }
-            if (state.prefs.watermarkStyle == WatermarkStyle.CAPTION) {
-                Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    AnchorChip(
-                        stringResource(R.string.anchor_bottom),
-                        state.prefs.captionAnchor == CaptionAnchor.BOTTOM,
-                    ) { onAnchor(CaptionAnchor.BOTTOM) }
-                    AnchorChip(
-                        stringResource(R.string.anchor_top),
-                        state.prefs.captionAnchor == CaptionAnchor.TOP,
-                    ) { onAnchor(CaptionAnchor.TOP) }
-                }
-            }
-            Spacer(Modifier.height(14.dp))
-            val scale = if (busy) 0.92f else 1f
-            val shutterDescription = stringResource(R.string.cd_shutter)
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 28.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
+            },
+            onZoomRatio = { next ->
+                zoomRatio = next
+                boundCamera?.cameraControl?.setZoomRatio(next)
+                zoomHudToken += 1
+            },
+            onLinearZoom = { value ->
+                linearZoom = value
+                boundCamera?.cameraControl?.setLinearZoom(value)
+                zoomHudToken += 1
+            },
+            onGuidance = {
+                if (guidance?.opensLocationSettings == true) onOpenLocationSettings() else onRequestLocation()
+            },
+            onRequestCamera = onRequestCamera,
+            thumbnail = {
                 if (latestPhoto != null) {
                     LastShot(uri = latestPhoto, onClick = onOpenGallery)
-                } else {
-                    Spacer(Modifier.size(52.dp))
                 }
-                Box(
-                    modifier = Modifier
-                        .size(78.dp)
-                        .graphicsLayer {
-                            scaleX = scale
-                            scaleY = scale
-                        }
-                        .border(2.dp, Color.White, CircleShape)
-                        .padding(6.dp)
-                        .clip(CircleShape)
-                        .background(if (busy) Color(0xFFB9B9B4) else Color.White)
-                        .semantics { contentDescription = shutterDescription }
-                        .clickable(
-                            enabled = state.cameraGranted && !busy,
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                        ) {
-                            context.captureTick()
-                            imageCapture.targetRotation = captureRotation
-                            busy = true
-                            scope.launch {
-                                val captured = runCatching {
-                                    pipeline.capture(
-                                        imageCapture = imageCapture,
-                                        content = content,
-                                        style = state.prefs.watermarkStyle,
-                                        anchor = state.prefs.captionAnchor,
-                                        latitude = state.latitude,
-                                        longitude = state.longitude,
-                                        altitudeMeters = state.reading.altitudeMslMeters?.takeIf { state.reading.absoluteMsl },
-                                        epochMs = state.nowMillis,
-                                    )
-                                }
-                                val message = captured.fold(
-                                    onSuccess = { R.string.save_success },
-                                    onFailure = { error ->
-                                        (error as? CaptureException)?.messageRes ?: R.string.error_save_failed
-                                    },
-                                )
-                                onSaved(message, captured.getOrNull())
-                                busy = false
-                            }
+            },
+            photo = { fit ->
+                if (state.cameraGranted) {
+                    BindCamera(
+                        previewView = previewView,
+                        imageCapture = imageCapture,
+                        front = lens == CameraLens.FRONT,
+                        rotation = captureRotation,
+                        lifecycleOwner = LocalLifecycleOwner.current,
+                        onError = { cameraError = it },
+                        onCamera = { boundCamera = it },
+                        onLenses = { back, front ->
+                            backLens = back
+                            frontLens = front
                         },
-                )
-                if (showLensButton) {
-                    val front = lens == CameraLens.FRONT
-                    val switchDescription = stringResource(
-                        if (front) R.string.cd_switch_to_back else R.string.cd_switch_to_front,
                     )
-                    Box(
-                        modifier = Modifier
-                            .size(52.dp)
-                            .graphicsLayer { rotationZ = upright + lensSpin }
-                            .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.08f))
-                            .semantics { contentDescription = switchDescription }
-                            .clickable(enabled = !busy) {
-                                lensTurns += 180f
-                                onFrontCamera(lens != CameraLens.FRONT)
-                            },
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            Icons.Outlined.Cameraswitch,
-                            contentDescription = null,
-                            tint = Color.White,
-                        )
-                    }
-                } else {
-                    Spacer(Modifier.size(52.dp))
                 }
-            }
-        }
-        }
+                AndroidView(factory = { previewView }, modifier = Modifier.fillMaxSize())
+                AndroidView(factory = { screenFlashView }, modifier = Modifier.fillMaxSize())
+                if (state.prefs.watermarkStyle == WatermarkStyle.CAPTION) {
+                    AndroidView(
+                        modifier = Modifier.fillMaxSize(),
+                        factory = { SignatureView(it) },
+                        update = { view ->
+                            view.mode = SignatureMode.CAPTION
+                            view.anchor = state.prefs.captionAnchor
+                            view.content = content
+                            view.metricPx = min(fit.photoWidth, fit.photoHeight)
+                            view.invalidate()
+                        },
+                    )
+                }
+                cameraError?.let { messageRes ->
+                    Text(
+                        text = stringResource(messageRes),
+                        color = Color.White,
+                        modifier = Modifier.align(Alignment.Center).padding(16.dp),
+                        fontSize = 13.sp,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    )
+                }
+                PreviewGestures(
+                    previewView = previewView,
+                    camera = boundCamera,
+                    autofocus = autofocus,
+                    zoomRatio = zoomRatio,
+                    zoomMin = zoomMin,
+                    zoomMax = zoomMax,
+                    onZoomRatio = { next ->
+                        zoomRatio = next
+                        boundCamera?.cameraControl?.setZoomRatio(next)
+                    },
+                    onPinch = { zoomHudToken += 1 },
+                )
+                if (zoomHud) {
+                    ZoomReadout(ratio = zoomRatio, modifier = Modifier.align(Alignment.Center))
+                }
+                if (lensCover.value > 0.01f) {
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = lensCover.value)),
+                    )
+                }
+            },
+            plate = { fit ->
+                AndroidView(
+                    modifier = Modifier.fillMaxSize(),
+                    factory = { SignatureView(it) },
+                    update = { view ->
+                        view.mode = SignatureMode.PLATE
+                        view.dark = state.prefs.watermarkStyle == WatermarkStyle.PLATE_DARK
+                        view.content = content
+                        view.metricPx = min(fit.photoWidth, fit.photoHeight)
+                        view.invalidate()
+                    },
+                )
+            },
+            modifier = Modifier
+                .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.safeDrawing),
+        )
         if (state.galleryOpen) {
             GalleryScreen(
                 uris = state.photos,
@@ -699,52 +469,6 @@ private fun LastShot(uri: String, onClick: () -> Unit) {
             )
         }
     }
-}
-
-@Composable
-private fun StyleRow(selected: WatermarkStyle, onStyle: (WatermarkStyle) -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
-    ) {
-        WatermarkStyle.entries.forEach { style ->
-            StyleChip(stringResource(style.labelRes()), selected == style) { onStyle(style) }
-        }
-    }
-}
-
-@Composable
-private fun StyleChip(label: String, selected: Boolean, onClick: () -> Unit) {
-    Text(
-        text = label,
-        color = if (selected) Color.Black else Color.White,
-        fontFamily = Outfit,
-        fontWeight = FontWeight.Medium,
-        fontSize = 13.sp,
-        maxLines = 1,
-        softWrap = false,
-        modifier = Modifier
-            .clip(RoundedCornerShape(999.dp))
-            .background(if (selected) Color.White else Color.White.copy(alpha = 0.08f))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 7.dp),
-    )
-}
-
-@Composable
-private fun AnchorChip(label: String, selected: Boolean, onClick: () -> Unit) {
-    Text(
-        text = label,
-        color = if (selected) Color.White else Color(0xFFB7B7B2),
-        fontFamily = Outfit,
-        fontSize = 12.sp,
-        modifier = Modifier
-            .clip(RoundedCornerShape(999.dp))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 4.dp),
-    )
 }
 
 @Composable
