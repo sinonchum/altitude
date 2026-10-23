@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleDisplayName</key>
+	<string>Altitude</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>Altitude</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleVersion</key>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Altitude uses the camera to write elevation and coordinates into the photo.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Altitude uses your location so the altitude can follow you, including precise satellite height.</string>
+	<key>NSLocationTemporaryUsageDescriptionDictionary</key>
+	<dict>
+		<key>AltitudeReading</key>
+		<string>Altitude uses a precise location to show elevation and the place name.</string>
+	</dict>
+	<key>NSMotionUsageDescription</key>
+	<string>Altitude uses the barometer to steady the altitude between satellite fixes.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Altitude saves photos with the altitude watermark into your library.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Altitude reads the photos it saved in the Altitude album so you can view them in the app.</string>
+	<key>UIAppFonts</key>
+	<array>
+		<string>outfit_regular.ttf</string>
+		<string>outfit_medium.ttf</string>
+		<string>outfit_semibold.ttf</string>
+		<string>outfit_bold.ttf</string>
+		<string>outfit_extrabold.ttf</string>
+	</array>
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<false/>
+	</dict>
+	<key>UILaunchScreen</key>
+	<dict/>
+	<key>UIStatusBarStyle</key>
+	<string>UIStatusBarStyleDefault</string>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UIViewControllerBasedStatusBarAppearance</key>
+	<true/>
+</dict>
+</plist>
