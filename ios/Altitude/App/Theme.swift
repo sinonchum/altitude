@@ -63,7 +63,7 @@ enum Outfit {
         }
     }
 
-    static func font(_ name: String, _ size: CGFloat, fallback: UIFont.Weight) -> Font {
+    static func font(_ name: String, _ size: CGFloat, fallback: Font.Weight) -> Font {
         if UIFont(name: name, size: size) != nil {
             return .custom(name, size: size)
         }
