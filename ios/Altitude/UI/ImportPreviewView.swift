@@ -2,6 +2,22 @@ import Photos
 import SwiftUI
 import UIKit
 
+/// Widths shared by the import preview and the chip-fit test. Nothing here depends on language.
+enum ImportChrome {
+    static let horizontalPadding: CGFloat = 12
+    static let chipSpacing: CGFloat = 6
+    /// Narrowest iPhone point width that runs iOS 17 (SE 2nd/3rd generation, 12 mini, 13 mini).
+    static let narrowestPhoneWidth: CGFloat = 375
+    /// Landscape point width of that SE (667 × 375).
+    static let narrowestLandscapeWidth: CGFloat = 667
+
+    static var portraitChipWidth: CGFloat { narrowestPhoneWidth - horizontalPadding * 2 }
+
+    static func landscapeColumnWidth(contentWidth: CGFloat) -> CGFloat {
+        min(320, max(180, contentWidth * 0.38))
+    }
+}
+
 struct ImportPreviewView: View {
     @Bindable var model: AppModel
     @State private var framed: UIImage?
@@ -69,7 +85,7 @@ struct ImportPreviewView: View {
             controls(copy)
             saveBar(copy)
         }
-        .padding(.horizontal, 12)
+        .padding(.horizontal, ImportChrome.horizontalPadding)
         .padding(.bottom, 8)
     }
 
@@ -85,9 +101,9 @@ struct ImportPreviewView: View {
                 controls(copy)
                 saveBar(copy)
             }
-            .frame(width: min(320, max(180, size.width * 0.38)))
+            .frame(width: ImportChrome.landscapeColumnWidth(contentWidth: size.width))
         }
-        .padding(.horizontal, 12)
+        .padding(.horizontal, ImportChrome.horizontalPadding)
         .padding(.vertical, 8)
     }
 
@@ -161,22 +177,27 @@ struct ImportPreviewView: View {
 
     private func controls(_ copy: Copy) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 6) {
-                    ForEach(WatermarkStyle.allCases, id: \.rawValue) { style in
-                        ChoiceChip(title: copy.watermarkName(style), selected: model.prefs.watermarkStyle == style, accent: .white) {
-                            model.setWatermark(style)
-                        }
+            FlowLayout(spacing: ImportChrome.chipSpacing) {
+                ForEach(WatermarkStyle.allCases, id: \.rawValue) { style in
+                    ChoiceChip(title: copy.watermarkName(style), selected: model.prefs.watermarkStyle == style, accent: .white) {
+                        model.setWatermark(style)
                     }
                 }
             }
-            HStack(spacing: 6) {
+            FlowLayout(spacing: ImportChrome.chipSpacing) {
                 ForEach(CaptionAnchor.allCases, id: \.rawValue) { anchor in
                     ChoiceChip(title: copy.anchorName(anchor), selected: model.prefs.captionAnchor == anchor, accent: Color(hex: 0xF6C453)) {
                         model.setAnchor(anchor)
                     }
                 }
             }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background {
+            Color.clear
+                .accessibilityElement()
+                .accessibilityIdentifier("import.controls")
+                .accessibilityLabel("Controls")
         }
     }
 

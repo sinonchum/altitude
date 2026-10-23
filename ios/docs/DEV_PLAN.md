@@ -65,7 +65,7 @@ Acceptance:
 - [ ] Every translatable Android key exists in `en`, `zh-Hans`, and `fr`, with the same format specifiers.
 - [ ] `app_name`, `wordmark`, and the three language names are not translated. Wordmark is `ALTITUDE`.
 - [ ] Plural categories match Android: English one/other, Chinese other, French one/many/other.
-- [ ] Settings shows the bundle version, not a literal typed into the view body. The first release showed `1.0.0 (1)`. The import release shows `1.1.0 (2)`.
+- [ ] Settings shows the bundle version, not a literal typed into the view body. The first release showed `1.0.0 (1)`. Import framing first showed `1.1.0 (2)`. This build shows `1.1.1 (3)`.
 - [ ] No user-facing string is written as a literal in a SwiftUI view. Permission text is in the property-list catalog.
 
 ## Step 3 — Sensors, place names, photos
@@ -180,14 +180,15 @@ Implementation:
 - `PhotosPicker` uses `PHPhotoLibrary.shared()` so items carry asset identifiers. `PhotoImporter` requests original image data and, when the file has no GPS, uses `PHAsset.location`. Limited library access still returns that location for an asset the person just picked, so a readable asset is not treated as redacted. A missing asset is treated as redacted and the preview shows the dropped-location notice. A readable asset with no GPS is treated as absent.
 - `ElevationDirectory` batches the points that still need a height, with the same user agent and one-request-per-second spacing.
 - `ImportPreviewView` renders through `WatermarkRenderer`, which now honors a top plate and a top mount. Blank altitude text is not drawn.
+- Style and anchor chips use the same wrapping row as Settings. A chip that is wider than the offered width is measured again at that width and can wrap to two lines. The landscape side column and the portrait padding come from `ImportChrome`. There is no per-language width.
 - Strings live in the catalog in English, Simplified Chinese, and French. The dropped-location notice says the location was left out and that Limited access still includes the location of a selected photo. Full Access is Settings → Altitude → Photos.
-- Version is `1.1.0` build `2`.
+- Version is `1.1.1` build `3`. Import framing first shipped as `1.1.0` build `2`.
 
 Depends on: steps 1–3 (formatting, strings, watermark drawing, album save, Nominatim). The Android photo-framing behavior is the reference. The Android tree is not modified.
 
 Parallel with: nothing inside this step. The domain tests do not wait on the preview screenshots.
 
-Test: `PhotoImportTests` ports `PhotoExifTest` and `PhotoAltitudeTest`, including Open-Meteo parsing, and adds the asset-identifier merge plus a JPEG round trip of GPS, below-sea-level altitude, `DateTimeOriginal`, and `OffsetTimeOriginal`. UI tests shoot the import entry and the preview for a portrait photo, a landscape photo, no GPS, and computed altitude, in both device orientations, plus the no-GPS notice in Chinese and French.
+Test: `PhotoImportTests` ports `PhotoExifTest` and `PhotoAltitudeTest`, including Open-Meteo parsing, and adds the asset-identifier merge plus a JPEG round trip of GPS, below-sea-level altitude, `DateTimeOriginal`, and `OffsetTimeOriginal`. `ChipFlowTests` lays the English, Chinese, and French style and anchor labels into the portrait width of the narrowest iPhone and into the landscape side column, and fails if a chip is cut by the row. UI tests shoot the import entry and the preview for a portrait photo, a landscape photo, no GPS, and computed altitude, in both device orientations, plus the no-GPS notice in Chinese and French. Each import screenshot requires every style and anchor chip to sit fully inside the controls and the window.
 
 Acceptance:
 
@@ -198,7 +199,7 @@ Acceptance:
 - [x] Computed altitude is drawn with `≈`. Missing altitude and missing coordinates are omitted from the saved image, including the dash placeholder.
 - [x] Plate and mount can sit on top. The import preview shows styles and the top/bottom control. Portrait and landscape photos are upright.
 - [x] Import screenshots exist for the entry, portrait photo, landscape photo, no GPS, and computed altitude, in both device orientations, with the notice inside the window in English, Chinese, and French.
-- [x] Settings shows `1.1.0 (2)`. New strings exist in `en`, `zh-Hans`, and `fr` with matching format specifiers.
+- [x] Settings shows `1.1.1 (3)`. New strings exist in `en`, `zh-Hans`, and `fr` with matching format specifiers.
 
 ## Parallelism
 
@@ -231,7 +232,7 @@ Status is `pass` when the matching test or workflow check succeeds.
 | B4 | Blank altitude is omitted and top plate/mount layout is covered by a unit test | pass |
 | B5 | Import entry and preview screenshots exist in both device orientations | pass |
 | B6 | No-GPS notice is inside the window in English, Chinese, and French | pass |
-| B7 | Settings shows 1.1.0 (2) and the new strings pass the catalog parity test | pass |
+| B7 | Settings shows 1.1.1 (3) and the new strings pass the catalog parity test | pass |
 | B8 | Workflow run for this milestone is green | pass |
 
-Version shown in Settings: **1.1.0 (2)**.
+Version shown in Settings: **1.1.1 (3)**.

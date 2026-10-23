@@ -2,7 +2,7 @@
 
 Product name stays **Altitude**. The wordmark on the display and the watermark is the Latin word `ALTITUDE`. It is not translated. The red dot is this app’s own mark. The app does not imitate a camera brand, and it does not invent focal length or aperture.
 
-This document describes the iOS app that matches the Android app at version **1.3.2** (versionCode 9), plus Android import-and-frame behavior. The iOS app lives in `ios/` and does not change the Android project. The first iOS release was **1.0.0 (1)**. The import release is **1.1.0 (2)**.
+This document describes the iOS app that matches the Android app at version **1.3.2** (versionCode 9), plus Android import-and-frame behavior. The iOS app lives in `ios/` and does not change the Android project. The first iOS release was **1.0.0 (1)**. Import framing first shipped as **1.1.0 (2)**. This build is **1.1.1 (3)**.
 
 Feature parity is the goal. Platform differences are called out in the mapping column, not papered over with special-case tables.
 
@@ -235,7 +235,7 @@ Android source: `GalleryScreen`, `AlbumIndex`, `AlbumQuery`.
 - Theme: Night, Black, Glacier, Saffron, Snow.
 - Toggles: maximum brightness, coordinates, accuracy, time, place name, follow system colors.
 - A note that the watermark always carries altitude, coordinates, and time.
-- Version line: `About / Version 1.1.0 (2)`, from `CFBundleShortVersionString` and `CFBundleVersion`. The first release was `1.0.0 (1)`. Bump both on every later release.
+- Version line: `About / Version 1.1.1 (3)`, from `CFBundleShortVersionString` and `CFBundleVersion`. The first release was `1.0.0 (1)`. Import framing first shipped as `1.1.0 (2)`. Bump both on every later release.
 
 Strings live in `Localizable.xcstrings`. Development language is English. Localizations: `en`, `zh-Hans`, `fr`. Copy is the Android `values`, `values-zh-rCN`, and `values-fr` catalogs. Format placeholders are converted from `%1$s` to `%1$@` only at the call site. The catalog keeps the Android specifiers so the parity test can compare them. Plural categories follow the Android catalogs (English one/other, Chinese other, French one/many/other).
 
@@ -261,7 +261,7 @@ Defaults: meters, Night, coordinates on, accuracy on, clock on, place on, white 
 | Font | Outfit (OFL), files under `ios/Altitude/Resources/Fonts` |
 | Pure logic | `ios/Altitude/Domain`, no UIKit |
 | Tests | XCTest unit tests in the app host, XCUITest screenshots with a mock viewfinder |
-| Version | 1.1.0 (2), iOS 17 and later, iPhone |
+| Version | 1.1.1 (3), iOS 17 and later, iPhone |
 
 The mock viewfinder exists so screenshots and UI tests do not depend on a simulator camera. Launch arguments `-uiPreview`, `-uiLang`, `-uiLens`, `-uiFlash`, and `-uiImport` drive it. They are not a user-facing mode.
 
@@ -282,7 +282,7 @@ Limited photo access still exposes `PHAsset.location` for each asset the person 
 
 The picker is `PhotosPicker` on `PHPhotoLibrary.shared()`, at most 12 images, so each item has an asset identifier. The loader asks Photos for the original image data (`PHImageRequestOptions.version = .original`). EXIF inside that file wins. The asset location is only a fill-in for a file whose GPS was removed. Saving calls `PHAssetCreationRequest` and writes a new JPEG into the Altitude album. The original asset is never edited.
 
-Preview and the saved image use `WatermarkRenderer`. Plate and mount honor the top anchor: the band sits above the photo, and the hairline sits on the photo side of that band. EXIF orientation is baked into upright pixels before the frame is drawn. Portrait and landscape photos, and portrait and landscape devices, keep the notice, the style chips, and the position chips inside the safe area.
+Preview and the saved image use `WatermarkRenderer`. Plate and mount honor the top anchor: the band sits above the photo, and the hairline sits on the photo side of that band. EXIF orientation is baked into upright pixels before the frame is drawn. Portrait and landscape photos, and portrait and landscape devices, keep the notice, the style chips, and the position chips inside the safe area. Those chips wrap onto the next line when the row is narrower than their labels, including the landscape side column and the narrowest iPhone width (375pt). A label wider than the row wraps to two lines. Widths are not chosen per language.
 
 Open-Meteo requests use the same user agent and the same one-request-per-second gate as place names. Results are cached on a 0.01°-scale key (`%.4f`). A null or failed height is not stored and is not drawn.
 

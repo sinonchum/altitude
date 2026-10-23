@@ -53,9 +53,13 @@ An emulator has no barometer. A phone with one labels the reading as satellite p
 
 ### Releases
 
-This tree is Android 1.4.1, iOS 1.1.0. Debug APKs are published as GitHub prereleases under tags `v*-debug`:
+This tree is Android 1.4.1, iOS 1.1.1. Debug APKs are published as GitHub prereleases under tags `v*-debug`:
 
 - [All releases](https://github.com/sinonchum/altitude/releases)
+
+Current Android debug APK: [Altitude 1.4.1](https://github.com/sinonchum/altitude/releases/download/v1.4.1-debug/Altitude-1.4.1-debug.apk).
+
+Current iOS build: [Altitude iOS 1.1.1 unsigned IPA](https://github.com/sinonchum/altitude/releases/download/ios-v1.1.1-unsigned/Altitude-iOS-1.1.1-unsigned.ipa). Re-sign it before installing on a device.
 
 ### Data sources and attribution
 
@@ -72,11 +76,13 @@ The live altitude is computed on the phone. Coordinates are sent to Nominatim wh
 
 ### iOS
 
-`ios/` is a native iPhone app for iOS 17 and later. This tree’s iOS version is 1.1.0 (2). The bundle id is `app.altitude.ios`. It includes the full-screen altitude display, the stamped camera, the front and back cameras, and landscape shooting.
+`ios/` is a native iPhone app for iOS 17 and later. This tree’s iOS version is 1.1.1 (3). The bundle id is `app.altitude.ios`. It includes the full-screen altitude display, the stamped camera, the front and back cameras, and landscape shooting.
 
 Saved photos go into a Photos album named Altitude.
 
 Existing photos can be framed from their own metadata. Coordinates and time come from the file, with the Photos asset location used when the file’s GPS was removed. A missing altitude is filled from Open-Meteo when coordinates exist, and omitted when it cannot be computed.
+
+Style and position chips wrap inside the import controls on narrow widths.
 
 Requirements: Xcode, and [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`).
 
@@ -142,9 +148,13 @@ adb emu geo fix 91.117 29.652 3650
 
 ### 版本与下载
 
-本树为 Android 1.4.1 与 iOS 1.1.0。调试 APK 以 GitHub 预发布的形式挂在 `v*-debug` 标签上：
+本树为 Android 1.4.1 与 iOS 1.1.1。调试 APK 以 GitHub 预发布的形式挂在 `v*-debug` 标签上：
 
 - [全部发布](https://github.com/sinonchum/altitude/releases)
+
+当前 Android 调试包：[Altitude 1.4.1](https://github.com/sinonchum/altitude/releases/download/v1.4.1-debug/Altitude-1.4.1-debug.apk)。
+
+当前 iOS 构建：[Altitude iOS 1.1.1 未签名 IPA](https://github.com/sinonchum/altitude/releases/download/ios-v1.1.1-unsigned/Altitude-iOS-1.1.1-unsigned.ipa)。安装到设备前需要重新签名。
 
 ### 数据来源与署名
 
@@ -161,11 +171,13 @@ Altitude 没有账号，也不会上传轨迹。定位、相机和照片权限�
 
 ### iOS
 
-`ios/` 是面向 iPhone、系统为 iOS 17 及以上的原生应用。本树中的 iOS 版本是 1.1.0（2）。Bundle id 为 `app.altitude.ios`。它包含全屏海拔、带水印的相机、前后摄和横屏拍摄。
+`ios/` 是面向 iPhone、系统为 iOS 17 及以上的原生应用。本树中的 iOS 版本是 1.1.1（3）。Bundle id 为 `app.altitude.ios`。它包含全屏海拔、带水印的相机、前后摄和横屏拍摄。
 
 保存的照片进入名为 Altitude 的照片相簿。
 
 已有照片可以按其自身的元数据加框。坐标和时间来自文件；文件里的 GPS 被去掉时，使用照片资源上的位置。有坐标但缺少海拔时，向 Open-Meteo 补高度；无法得到时不画海拔。
+
+较窄宽度下，样式和位置选项会在导入控件里自动换行。
 
 需要 Xcode，以及 [XcodeGen](https://github.com/yonaskolb/XcodeGen)（`brew install xcodegen`）。
 
