@@ -92,7 +92,7 @@ struct ChoiceChip: View {
                 .font(Outfit.semibold(14))
                 .foregroundStyle(selected ? Color(hex: 0x141210) : Color(hex: 0xF3F0E8))
                 .lineLimit(1)
-                .minimumScaleFactor(0.7)
+                .minimumScaleFactor(0.6)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
                 .background(selected ? accent : Color.white.opacity(0.08), in: Capsule())

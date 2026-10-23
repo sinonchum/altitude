@@ -12,11 +12,17 @@ struct SettingsSheet: View {
                 .font(Outfit.semibold(22))
                 .foregroundStyle(Color(hex: 0xF3F0E8))
                 .padding(.top, 16)
+                .padding(.trailing, 52)
             Text(copy.format("settings_about_version", AppVersion.line))
                 .font(Outfit.regular(13))
                 .foregroundStyle(Color(hex: 0x8E8A82))
                 .padding(.top, 6)
+                .padding(.trailing, 8)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityElement(children: .ignore)
                 .accessibilityIdentifier("settings.version")
+                .accessibilityAddTraits(.isStaticText)
+                .accessibilityLabel(copy.format("settings_about_version", AppVersion.line))
             section(copy.text("settings_language"))
             flow {
                 ForEach(AppLanguage.allCases) { language in
@@ -43,7 +49,7 @@ struct SettingsSheet: View {
                                     .overlay(Circle().stroke(model.prefs.theme == theme ? palette.accent : Color.white.opacity(0.2), lineWidth: model.prefs.theme == theme ? 2 : 1))
                                     .onTapGesture { model.setTheme(theme) }
                                     .accessibilityLabel(copy.format("cd_theme", copy.themeName(theme)))
-                                Text(copy.themeName(theme)).font(Outfit.regular(11)).foregroundStyle(Color(hex: 0xB7B3AA)).lineLimit(1)
+                                Text(copy.themeName(theme)).font(Outfit.regular(11)).foregroundStyle(Color(hex: 0xB7B3AA)).lineLimit(1).minimumScaleFactor(0.7)
                             }
                         }
                     }

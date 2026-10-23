@@ -24,7 +24,7 @@ struct CameraScreen: View {
     var body: some View {
         GeometryReader { geo in
             let landscape = geo.size.width > geo.size.height
-            let safe = geo.safeAreaInsets
+            let safe = resolvedSafeArea(geo)
             ZStack {
                 Color.black.ignoresSafeArea()
                 if !model.cameraGranted && model.preview == nil {
@@ -46,11 +46,9 @@ struct CameraScreen: View {
                         .padding(.vertical, 10)
                         .background(Color(hex: 0xF4F1EA), in: Capsule())
                         .frame(maxHeight: .infinity, alignment: .top)
-                        .safeAreaPadding(.top, 8)
+                        .padding(.top, safe.top + 8)
                 }
             }
-            .accessibilityElement(children: .contain)
-            .accessibilityIdentifier("camera.stage")
         }
         .ignoresSafeArea()
         .accessibilityIdentifier("screen.camera")
@@ -91,12 +89,14 @@ struct CameraScreen: View {
             }
             HStack {
                 thumbnail
+                Spacer(minLength: 8)
                 ShutterButton(enabled: model.cameraGranted || model.preview != nil, busy: busy, label: copy.text("cd_shutter")) { shoot() }
+                Spacer(minLength: 8)
                 lensButton
             }
             .padding(.horizontal, 28)
             .padding(.top, 12)
-            .padding(.bottom, safe.bottom + 8)
+            .padding(.bottom, max(safe.bottom, 8))
         }
     }
 
@@ -105,18 +105,74 @@ struct CameraScreen: View {
         let trailing = safe.trailing
         return HStack(spacing: 0) {
             if shutterOnEnd {
-                utilityRail.frame(width: CGFloat(CameraStageMetrics.utilityRail)).padding(.leading, leading)
-                GeometryReader { mid in frame(in: mid.size) }
-                zoomColumn.frame(width: CGFloat(CameraStageMetrics.zoomRail))
-                captureRail.frame(width: CGFloat(CameraStageMetrics.shutterRail)).padding(.trailing, trailing)
+                utilityRail.frame(width: CGFloat(CameraStageMetrics.utilityRail)).padding(.leading, leading).padding(.vertical, max(safe.top, safe.bottom, 4))
+                GeometryReader { mid in landscapeFrame(in: mid.size) }
+                zoomColumn.frame(width: CGFloat(CameraStageMetrics.zoomRail)).padding(.vertical, max(safe.top, safe.bottom, 4))
+                captureRail.frame(width: CGFloat(CameraStageMetrics.shutterRail)).padding(.trailing, trailing).padding(.vertical, max(safe.top, safe.bottom, 4))
             } else {
-                captureRail.frame(width: CGFloat(CameraStageMetrics.shutterRail)).padding(.leading, leading)
-                zoomColumn.frame(width: CGFloat(CameraStageMetrics.zoomRail))
-                GeometryReader { mid in frame(in: mid.size) }
-                utilityRail.frame(width: CGFloat(CameraStageMetrics.utilityRail)).padding(.trailing, trailing)
+                captureRail.frame(width: CGFloat(CameraStageMetrics.shutterRail)).padding(.leading, leading).padding(.vertical, max(safe.top, safe.bottom, 4))
+                zoomColumn.frame(width: CGFloat(CameraStageMetrics.zoomRail)).padding(.vertical, max(safe.top, safe.bottom, 4))
+                GeometryReader { mid in landscapeFrame(in: mid.size) }
+                utilityRail.frame(width: CGFloat(CameraStageMetrics.utilityRail)).padding(.trailing, trailing).padding(.vertical, max(safe.top, safe.bottom, 4))
             }
         }
-        .padding(.vertical, max(safe.top, safe.bottom, 4))
+    }
+
+    /// The live image fills the column between the rails. The watermark band sits on the image so the viewfinder still reaches the screen edges.
+    private func landscapeFrame(in available: CGSize) -> some View {
+        let width = max(available.width, 1)
+        let height = max(available.height, 1)
+        let metric = min(width, height)
+        let plate = CGFloat(WatermarkMetrics.plateHeightPx(
+            photoWidth: Int(metric.rounded()),
+            hasPlace: model.prefs.showPlace && model.placeName != nil
+        ))
+        let content = model.watermarkContent()
+        return ZStack(alignment: .bottom) {
+            scene
+                .frame(width: width, height: height)
+                .clipped()
+            if model.prefs.watermarkStyle == .caption {
+                WatermarkPlate(content: content, style: .caption, anchor: model.prefs.captionAnchor, metric: metric)
+                    .frame(width: width, height: height)
+                    .allowsHitTesting(false)
+            } else {
+                WatermarkPlate(
+                    content: content,
+                    style: model.prefs.watermarkStyle,
+                    anchor: .bottom,
+                    metric: metric
+                )
+                .frame(width: width, height: min(plate, height * 0.34))
+                .allowsHitTesting(false)
+            }
+        }
+        .frame(width: width, height: height)
+        .clipped()
+        .gesture(pinch)
+        .simultaneousGesture(tap)
+    }
+
+    private func resolvedSafeArea(_ geo: GeometryProxy) -> EdgeInsets {
+        let reported = geo.safeAreaInsets
+        let window = WindowSafeArea.current
+        return EdgeInsets(
+            top: max(reported.top, window.top),
+            leading: max(reported.leading, window.leading),
+            bottom: max(reported.bottom, window.bottom),
+            trailing: max(reported.trailing, window.trailing)
+        )
+    }
+
+    private var scene: some View {
+        Group {
+            if model.preview != nil {
+                MockScene(front: model.prefs.frontCamera)
+            } else {
+                CameraPreview(session: session.session) { previewView = $0 }
+                    .accessibilityIdentifier("camera.preview")
+            }
+        }
     }
 
     private func frame(in available: CGSize) -> some View {
@@ -137,12 +193,7 @@ struct CameraScreen: View {
                 Color.white.frame(height: CGFloat(fit.top))
             }
             ZStack {
-                if model.preview != nil {
-                    MockScene(front: model.prefs.frontCamera)
-                } else {
-                    CameraPreview(session: session.session) { previewView = $0 }
-                        .accessibilityIdentifier("camera.preview")
-                }
+                scene
                 if model.prefs.watermarkStyle == .caption {
                     WatermarkPlate(content: content, style: .caption, anchor: model.prefs.captionAnchor, metric: CGFloat(metric))
                         .allowsHitTesting(false)
@@ -521,6 +572,15 @@ struct CameraScreen: View {
             UIColor(red: 0.15, green: 0.28, blue: 0.42, alpha: 1).setFill()
             context.fill(CGRect(x: 0, y: 0, width: 1200, height: 1600))
         }
+    }
+}
+
+enum WindowSafeArea {
+    static var current: EdgeInsets {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        let window = scenes.flatMap(\.windows).first { $0.isKeyWindow } ?? scenes.flatMap(\.windows).first
+        let inset = window?.safeAreaInsets ?? .zero
+        return EdgeInsets(top: inset.top, leading: inset.left, bottom: inset.bottom, trailing: inset.right)
     }
 }
 

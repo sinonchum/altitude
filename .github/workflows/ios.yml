@@ -140,23 +140,66 @@ jobs:
       - name: Collect screenshots
         if: always()
         run: |
+          set +e
           mkdir -p ios/build/screenshots
-          find "$GITHUB_WORKSPACE" "$HOME" -type d -name altitude-screenshots -prune -exec cp {}/*.png ios/build/screenshots/ \; || true
+          find "$GITHUB_WORKSPACE" "$HOME" /tmp -type d -name altitude-screenshots -prune -exec cp -n {}/*.png ios/build/screenshots/ \;
           if [ -d ios/build/TestResults.xcresult ]; then
             rm -rf ios/build/xcattachments
             xcrun xcresulttool export attachments \
               --path ios/build/TestResults.xcresult \
               --output-path ios/build/xcattachments \
+              > ios/build/attachment-export.txt \
               || xcrun xcresulttool export \
                 --type attachments \
                 --path ios/build/TestResults.xcresult \
                 --output-path ios/build/xcattachments \
-              || true
-            if [ -d ios/build/xcattachments ]; then
-              find ios/build/xcattachments -name '*.png' -exec cp {} ios/build/screenshots/ \;
-            fi
+                > ios/build/attachment-export.txt
+            python3 - <<'PY'
+          import os, re, shutil
+          root = "ios/build/xcattachments"
+          dest = "ios/build/screenshots"
+          os.makedirs(dest, exist_ok=True)
+          log = "ios/build/attachment-export.txt"
+          text = open(log, encoding="utf-8", errors="replace").read() if os.path.exists(log) else ""
+          wanted = (
+              "display-en",
+              "settings-en",
+              "settings-zh",
+              "settings-fr",
+              "camera-portrait-back",
+              "camera-portrait-front",
+              "camera-landscape-back",
+              "camera-landscape-front",
+          )
+          for match in re.finditer(r'File:\s*(\S+\.png),\s*suggested name:\s*"([^"]+)"', text):
+              source_name, suggested = match.group(1), match.group(2)
+              stable = next((name for name in wanted if suggested.startswith(name)), None)
+              if stable is None:
+                  continue
+              found = None
+              for dirpath, _, files in os.walk(root):
+                  if source_name in files or os.path.basename(source_name) in files:
+                      found = os.path.join(dirpath, os.path.basename(source_name))
+                      break
+              if found and os.path.exists(found):
+                  target = os.path.join(dest, stable + ".png")
+                  if not os.path.exists(target):
+                      shutil.copy2(found, target)
+                      print("named", target)
+          PY
           fi
+          echo "screenshot directory:"
           find ios/build/screenshots -name '*.png' -print
+          missing=0
+          for name in display-en settings-en settings-zh settings-fr camera-portrait-back camera-portrait-front camera-landscape-back camera-landscape-front; do
+            if [ ! -f "ios/build/screenshots/${name}.png" ]; then
+              echo "missing ${name}.png"
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            echo "Expected screenshot names were not all collected"
+          fi
 
       - name: Upload screenshots
         if: always()

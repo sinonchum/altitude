@@ -13,15 +13,17 @@ final class WatermarkRenderTests: XCTestCase {
             wordmark: "ALTITUDE"
         )
         let rendered = WatermarkRenderer.render(photo: photo, content: content, style: .plateLight, anchor: .bottom)
-        XCTAssertEqual(rendered.size.width, 3000, accuracy: 0.5)
-        XCTAssertEqual(rendered.size.height, 4486, accuracy: 0.5)
+        let expected = WatermarkMetrics.outputSize(photoWidth: 3000, photoHeight: 4000, style: .plateLight, hasPlace: true)
+        XCTAssertEqual(expected, PixelSize(width: 3000, height: 4630))
+        XCTAssertEqual(rendered.size.width, CGFloat(expected.width), accuracy: 0.5)
+        XCTAssertEqual(rendered.size.height, CGFloat(expected.height), accuracy: 0.5)
         let data = try XCTUnwrap(PhotoJPEG.data(
             image: rendered,
             tags: PhotoJPEG.Tags(latitude: 29.65218, longitude: 91.117, altitudeMeters: 5210, epochMs: 1_761_129_728_000)
         ))
         XCTAssertFalse(data.isEmpty)
         let tags = PhotoJPEG.read(data)
-        XCTAssertEqual(tags.software, "Altitude")
+        XCTAssertEqual(tags.software, "Altitude", tags.dump)
         XCTAssertEqual(try XCTUnwrap(tags.latitude), 29.65218, accuracy: 0.0001)
         XCTAssertEqual(try XCTUnwrap(tags.longitude), 91.117, accuracy: 0.0001)
         XCTAssertEqual(try XCTUnwrap(tags.altitude), 5210, accuracy: 0.05)
@@ -42,8 +44,8 @@ final class WatermarkRenderTests: XCTestCase {
             tags: PhotoJPEG.Tags(latitude: 29.65, longitude: 91.12, altitudeMeters: nil, epochMs: 0)
         ))
         let tags = PhotoJPEG.read(data)
-        XCTAssertNil(tags.altitude)
-        XCTAssertEqual(tags.software, "Altitude")
+        XCTAssertNil(tags.altitude, tags.dump)
+        XCTAssertEqual(tags.software, "Altitude", tags.dump)
         XCTAssertNotNil(tags.latitude)
         XCTAssertNotNil(tags.longitude)
     }

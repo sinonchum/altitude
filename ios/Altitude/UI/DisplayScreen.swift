@@ -133,6 +133,9 @@ struct DisplayScreen: View {
                     .font(Outfit.regular(15))
                     .foregroundStyle(palette.primary.opacity(0.88))
                     .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.7)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             if model.prefs.showPlace, let place = model.placeName, !place.isEmpty {
                 Text(place)
