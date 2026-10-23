@@ -144,7 +144,7 @@
 
     <string name="cd_last_photo">Last photo</string>
     <string name="gallery_title">Photos</string>
-    <string name="gallery_empty">No photos yet. The ones you take show up here.</string>
+    <string name="gallery_empty">No photos yet. Take one, or import a photo you already have.</string>
     <string name="gallery_share">Share</string>
     <string name="gallery_delete">Delete</string>
     <string name="gallery_open">Open in gallery</string>
@@ -161,6 +161,29 @@
     <string name="error_share_failed">Couldn’t share the photo</string>
     <string name="error_delete_failed">Couldn’t delete the photo</string>
     <string name="error_open_failed">Couldn’t open the photo</string>
+
+    <string name="gallery_import">Import</string>
+    <string name="cd_import_photo">Import photos</string>
+    <string name="import_title">Frame a photo</string>
+    <string name="import_save">Save copy</string>
+    <string name="import_save_all">Save all</string>
+    <string name="import_saving">Saving…</string>
+    <string name="import_saving_progress">Saving %1$d of %2$d</string>
+    <string name="import_reading">Reading the photo…</string>
+    <string name="import_no_location_title">No location in this photo</string>
+    <string name="import_no_location_body">The frame can still be added. Only details found in the photo are shown.</string>
+    <string name="import_location_hidden_title">Photo location is hidden</string>
+    <string name="import_location_hidden_body">Android removes location from picked photos until photo locations are allowed. You can still add the frame, with the time if the photo has one.</string>
+    <string name="import_allow_photo_locations">Allow photo locations</string>
+    <string name="import_computed_title">Computed from coordinates</string>
+    <string name="import_altitude_computed">Altitude computed from the coordinates. This photo has no altitude of its own.</string>
+    <string name="import_missing_title">Altitude unavailable</string>
+    <string name="import_altitude_missing">No altitude in the photo, and none could be computed from its coordinates.</string>
+    <string name="format_altitude_computed">≈ %1$s</string>
+    <string name="cd_close_import">Close framing</string>
+    <string name="cd_import_save">Save a new copy</string>
+    <string name="cd_import_save_all">Save a new copy of every photo</string>
+    <string name="cd_import_preview">Framed photo</string>
 
     <string name="format_altitude">%1$s %2$s</string>
     <string name="format_accuracy">± %1$s %2$s</string>

@@ -135,7 +135,7 @@
 
     <string name="cd_last_photo">上一张照片</string>
     <string name="gallery_title">照片</string>
-    <string name="gallery_empty">还没有照片。拍下的会出现在这里。</string>
+    <string name="gallery_empty">还没有照片。拍一张，或导入已有的照片。</string>
     <string name="gallery_share">分享</string>
     <string name="gallery_delete">删除</string>
     <string name="gallery_open">在系统相册中打开</string>
@@ -152,6 +152,29 @@
     <string name="error_share_failed">无法分享这张照片</string>
     <string name="error_delete_failed">无法删除这张照片</string>
     <string name="error_open_failed">无法打开这张照片</string>
+
+    <string name="gallery_import">导入</string>
+    <string name="cd_import_photo">导入照片</string>
+    <string name="import_title">给照片加框</string>
+    <string name="import_save">保存副本</string>
+    <string name="import_save_all">全部保存</string>
+    <string name="import_saving">正在保存…</string>
+    <string name="import_saving_progress">正在保存 %1$d / %2$d</string>
+    <string name="import_reading">正在读取照片…</string>
+    <string name="import_no_location_title">这张照片没有位置</string>
+    <string name="import_no_location_body">仍可以加框。画面上只出现照片里已有的信息。</string>
+    <string name="import_location_hidden_title">照片位置被隐藏了</string>
+    <string name="import_location_hidden_body">在允许照片位置之前，系统会去掉所选照片里的位置。仍可以加框；如果照片里有拍摄时间，会写上时间。</string>
+    <string name="import_allow_photo_locations">允许照片位置</string>
+    <string name="import_computed_title">由坐标推算</string>
+    <string name="import_altitude_computed">海拔由坐标推算，照片本身没有海拔。</string>
+    <string name="import_missing_title">没有海拔</string>
+    <string name="import_altitude_missing">照片里没有海拔，也无法根据坐标算出。</string>
+    <string name="format_altitude_computed">≈ %1$s</string>
+    <string name="cd_close_import">关闭加框</string>
+    <string name="cd_import_save">保存为新照片</string>
+    <string name="cd_import_save_all">把每张都保存为新照片</string>
+    <string name="cd_import_preview">加框后的照片</string>
 
     <string name="format_altitude">%1$s %2$s</string>
     <string name="format_accuracy">± %1$s %2$s</string>

@@ -5,7 +5,7 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
-val altitudeVersionName = "1.3.2"
+val altitudeVersionName = "1.4.0"
 
 android {
     namespace = "app.altitude"
@@ -15,7 +15,7 @@ android {
         applicationId = "app.altitude"
         minSdk = 26
         targetSdk = 36
-        versionCode = 9
+        versionCode = 10
         versionName = altitudeVersionName
     }
 

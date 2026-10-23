@@ -4,12 +4,16 @@ import android.content.res.Resources
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalResources
 import app.altitude.R
+import app.altitude.domain.AltitudeProvenance
 import app.altitude.domain.AltitudeUnit
+import app.altitude.domain.PhotoCapture
+import app.altitude.domain.SelectedAltitude
 import app.altitude.domain.WatermarkContent
 import app.altitude.domain.formatDecimal
 import app.altitude.domain.formatInteger
 import app.altitude.domain.metersToFeet
 import java.time.Instant
+import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -70,10 +74,43 @@ class LocalFormat(private val resources: Resources) {
     }
 
     fun watermarkStamp(epochMs: Long, zone: ZoneId = ZoneId.systemDefault()): String {
-        val zoned = Instant.ofEpochMilli(epochMs).atZone(zone)
-        val date = zoned.format(pattern(R.string.pattern_watermark_date))
-        val time = zoned.format(pattern(R.string.pattern_watermark_time))
+        return watermarkStamp(Instant.ofEpochMilli(epochMs).atZone(zone).toLocalDateTime())
+    }
+
+    /** Formats the photo's own wall clock. The instant is not moved into another zone. */
+    fun watermarkStamp(local: LocalDateTime): String {
+        val date = local.format(pattern(R.string.pattern_watermark_date))
+        val time = local.format(pattern(R.string.pattern_watermark_time))
         return resources.getString(R.string.format_watermark_stamp, date, time)
+    }
+
+    fun importWatermark(
+        capture: PhotoCapture,
+        altitude: SelectedAltitude,
+        place: String?,
+        showPlace: Boolean,
+        unit: AltitudeUnit,
+    ): WatermarkContent {
+        val reading = altitude.meters?.let { altitudeReading(it, unit) }
+        val altitudeText = when {
+            altitude.provenance == AltitudeProvenance.FROM_PHOTO && reading != null -> reading
+            altitude.provenance == AltitudeProvenance.COMPUTED && reading != null -> {
+                resources.getString(R.string.format_altitude_computed, reading)
+            }
+            else -> ""
+        }
+        val coordinates = if (capture.hasCoordinates) {
+            coordinatePair(capture.latitude!!, capture.longitude!!)
+        } else {
+            null
+        }
+        return WatermarkContent(
+            altitude = altitudeText,
+            coordinates = coordinates,
+            place = if (showPlace) place?.takeIf { it.isNotBlank() } else null,
+            time = capture.clock?.let { watermarkStamp(it.local) },
+            wordmark = resources.getString(R.string.wordmark),
+        )
     }
 
     fun watermark(

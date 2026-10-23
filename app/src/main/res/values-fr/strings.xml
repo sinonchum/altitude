@@ -141,7 +141,7 @@
 
     <string name="cd_last_photo">Dernière photo</string>
     <string name="gallery_title">Photos</string>
-    <string name="gallery_empty">Pas encore de photo. Celles que vous prenez apparaissent ici.</string>
+    <string name="gallery_empty">Pas encore de photo. Prenez-en une, ou importez une photo existante.</string>
     <string name="gallery_share">Partager</string>
     <string name="gallery_delete">Supprimer</string>
     <string name="gallery_open">Ouvrir dans la galerie</string>
@@ -158,6 +158,29 @@
     <string name="error_share_failed">Impossible de partager la photo</string>
     <string name="error_delete_failed">Impossible de supprimer la photo</string>
     <string name="error_open_failed">Impossible d’ouvrir la photo</string>
+
+    <string name="gallery_import">Importer</string>
+    <string name="cd_import_photo">Importer des photos</string>
+    <string name="import_title">Encadrer la photo</string>
+    <string name="import_save">Enregistrer une copie</string>
+    <string name="import_save_all">Tout enregistrer</string>
+    <string name="import_saving">Enregistrement…</string>
+    <string name="import_saving_progress">Enregistrement %1$d sur %2$d</string>
+    <string name="import_reading">Lecture de la photo…</string>
+    <string name="import_no_location_title">Cette photo n’a pas de lieu</string>
+    <string name="import_no_location_body">Le cadre peut quand même être ajouté. Seules les données présentes sur la photo sont affichées.</string>
+    <string name="import_location_hidden_title">La position de la photo est masquée</string>
+    <string name="import_location_hidden_body">Android retire la position des photos choisies tant que les positions des photos ne sont pas autorisées. Vous pouvez tout de même ajouter le cadre, avec l’heure si elle existe.</string>
+    <string name="import_allow_photo_locations">Autoriser les positions</string>
+    <string name="import_computed_title">Calculée depuis les coordonnées</string>
+    <string name="import_altitude_computed">Altitude calculée à partir des coordonnées. La photo n’en contient pas.</string>
+    <string name="import_missing_title">Altitude indisponible</string>
+    <string name="import_altitude_missing">Pas d’altitude dans la photo, et aucun calcul possible à partir de ses coordonnées.</string>
+    <string name="format_altitude_computed">≈ %1$s</string>
+    <string name="cd_close_import">Fermer le cadrage</string>
+    <string name="cd_import_save">Enregistrer une nouvelle copie</string>
+    <string name="cd_import_save_all">Enregistrer une nouvelle copie de chaque photo</string>
+    <string name="cd_import_preview">Photo encadrée</string>
 
     <string name="format_altitude">%1$s %2$s</string>
     <string name="format_accuracy">± %1$s %2$s</string>

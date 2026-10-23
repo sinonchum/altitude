@@ -36,18 +36,36 @@ object WatermarkRenderer {
                 drawCaption(canvas, size.width.toFloat(), size.height.toFloat(), content, anchor)
             }
             WatermarkStyle.PLATE_LIGHT, WatermarkStyle.PLATE_DARK -> {
-                canvas.drawBitmap(photo, 0f, 0f, null)
-                val plate = RectF(0f, photo.height.toFloat(), photo.width.toFloat(), size.height.toFloat())
-                drawPlate(canvas, plate, content, dark = style == WatermarkStyle.PLATE_DARK, metric = metric)
+                val plateHeight = (size.height - photo.height).toFloat()
+                val onTop = anchor == CaptionAnchor.TOP
+                val photoTop = if (onTop) plateHeight else 0f
+                canvas.drawBitmap(photo, 0f, photoTop, null)
+                val plateTop = if (onTop) 0f else photo.height.toFloat()
+                val plate = RectF(0f, plateTop, photo.width.toFloat(), plateTop + plateHeight)
+                drawPlate(
+                    canvas,
+                    plate,
+                    content,
+                    dark = style == WatermarkStyle.PLATE_DARK,
+                    metric = metric,
+                    hairlineAtBottom = onTop,
+                )
             }
             WatermarkStyle.MOUNT -> {
                 canvas.drawColor(LIGHT_BG)
                 val reference = min(photo.width, photo.height)
                 val side = WatermarkMetrics.scaledPx(reference, WatermarkMetrics.MOUNT_SIDE_THOUSANDTHS).toFloat()
-                val top = WatermarkMetrics.scaledPx(reference, WatermarkMetrics.MOUNT_TOP_THOUSANDTHS).toFloat()
-                canvas.drawBitmap(photo, side, top, null)
-                val bottom = RectF(side, top + photo.height, size.width - side, size.height.toFloat())
-                drawBottomBand(canvas, bottom, metric, content, dark = false)
+                val slim = WatermarkMetrics.scaledPx(reference, WatermarkMetrics.MOUNT_TOP_THOUSANDTHS).toFloat()
+                val band = WatermarkMetrics.scaledPx(reference, WatermarkMetrics.MOUNT_BOTTOM_THOUSANDTHS).toFloat()
+                val onTop = anchor == CaptionAnchor.TOP
+                val photoTop = if (onTop) band else slim
+                canvas.drawBitmap(photo, side, photoTop, null)
+                val textBand = if (onTop) {
+                    RectF(side, 0f, size.width - side, band)
+                } else {
+                    RectF(side, photoTop + photo.height, size.width - side, size.height.toFloat())
+                }
+                drawBottomBand(canvas, textBand, metric, content, dark = false, hairlineAtBottom = onTop)
             }
         }
         return out
@@ -59,11 +77,12 @@ object WatermarkRenderer {
         content: WatermarkContent,
         dark: Boolean,
         metric: Float = rect.width(),
+        hairlineAtBottom: Boolean = false,
     ) {
         val paint = Paint(Paint.ANTI_ALIAS_FLAG)
         paint.color = if (dark) DARK_BG else LIGHT_BG
         canvas.drawRect(rect, paint)
-        drawBottomBand(canvas, rect, metric, content, dark)
+        drawBottomBand(canvas, rect, metric, content, dark, hairlineAtBottom)
     }
 
     fun drawCaption(
@@ -97,11 +116,13 @@ object WatermarkRenderer {
         metricWidth: Float,
         content: WatermarkContent,
         dark: Boolean,
+        hairlineAtBottom: Boolean = false,
     ) {
         val paint = Paint(Paint.ANTI_ALIAS_FLAG)
         paint.color = if (dark) 0x24FFFFFF else 0x16000000
         val hairline = max(1f, metricWidth * 0.0013f)
-        canvas.drawRect(rect.left, rect.top, rect.right, rect.top + hairline, paint)
+        val hairlineTop = if (hairlineAtBottom) rect.bottom - hairline else rect.top
+        canvas.drawRect(rect.left, hairlineTop, rect.right, hairlineTop + hairline, paint)
         val inset = metricWidth * 0.048f
         val text = RectF(rect.left + inset, rect.top, rect.right - inset, rect.bottom)
         drawSignature(canvas, text, metricWidth, content, dark)
@@ -135,15 +156,20 @@ object WatermarkRenderer {
         val wordmarkWidth = paint.measureText(wordmark)
         val wordmarkHeight = paint.lineHeight()
 
+        val altitudeText = content.altitude.takeIf { it.isNotBlank() }
         paint.typeface = AltitudeTypefaces.semiboldOrDefault()
         paint.letterSpacing = -0.03f
         var altSize = altitudeSize
-        paint.textSize = altSize
-        while (paint.measureText(content.altitude) > rightWidth && altSize > metricWidth * 0.032f) {
-            altSize *= 0.94f
+        val altitudeHeight = if (altitudeText == null) {
+            0f
+        } else {
             paint.textSize = altSize
+            while (paint.measureText(altitudeText) > rightWidth && altSize > metricWidth * 0.032f) {
+                altSize *= 0.94f
+                paint.textSize = altSize
+            }
+            paint.lineHeight()
         }
-        val altitudeHeight = paint.lineHeight()
 
         val coordinate = content.coordinates?.takeIf { it.isNotBlank() }
         val coordinateCjk = coordinate?.hasCjk() == true
@@ -193,7 +219,12 @@ object WatermarkRenderer {
         val leftHeight = wordmarkHeight +
             (if (coordinate != null) gap + coordinateHeight else 0f) +
             (if (place != null) gap + placeHeight else 0f)
-        val rightHeight = altitudeHeight + if (time != null) gap + timeHeight else 0f
+        val rightHeight = when {
+            altitudeText != null && time != null -> altitudeHeight + gap + timeHeight
+            altitudeText != null -> altitudeHeight
+            time != null -> timeHeight
+            else -> 0f
+        }
         val block = max(leftHeight, rightHeight)
         val top = rect.top + (rect.height() - block) / 2f
         val leftTop = top + (block - leftHeight) / 2f
@@ -233,19 +264,21 @@ object WatermarkRenderer {
             canvas.drawText(place, rect.left, placeTop + paint.baselineOffset(), paint)
         }
 
-        paint.color = primary
-        paint.typeface = AltitudeTypefaces.semiboldOrDefault()
-        paint.letterSpacing = -0.03f
-        paint.textSize = altSize
         paint.textAlign = Paint.Align.RIGHT
-        canvas.drawText(content.altitude, rect.right, rightTop + paint.baselineOffset(), paint)
+        if (altitudeText != null) {
+            paint.color = primary
+            paint.typeface = AltitudeTypefaces.semiboldOrDefault()
+            paint.letterSpacing = -0.03f
+            paint.textSize = altSize
+            canvas.drawText(altitudeText, rect.right, rightTop + paint.baselineOffset(), paint)
+        }
 
         if (time != null) {
             paint.color = secondary
             paint.typeface = AltitudeTypefaces.regularOrDefault()
             paint.letterSpacing = 0.06f
             paint.textSize = timeSize
-            val timeTop = rightTop + altitudeHeight + gap
+            val timeTop = rightTop + (if (altitudeText != null) altitudeHeight + gap else 0f)
             canvas.drawText(time, rect.right, timeTop + paint.baselineOffset(), paint)
         }
     }
