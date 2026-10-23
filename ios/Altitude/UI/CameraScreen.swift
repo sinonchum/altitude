@@ -31,9 +31,9 @@ struct CameraScreen: View {
                     permission
                         .safeAreaPadding(.horizontal, 28)
                 } else if landscape {
-                    landscapeStage(safe: safe, size: geo.size)
+                    landscapeStage(safe: safe)
                 } else {
-                    portraitStage(safe: safe, size: geo.size)
+                    portraitStage(safe: safe)
                 }
                 if flashCover {
                     Color.white.ignoresSafeArea()
@@ -67,7 +67,7 @@ struct CameraScreen: View {
     private var showFlash: Bool { model.prefs.frontCamera && frontAvailable }
     private var presets: [Float] { CameraZoom.presetsWithin(zoomMin, zoomMax) }
 
-    private func portraitStage(safe: EdgeInsets, size: CGSize) -> some View {
+    private func portraitStage(safe: EdgeInsets) -> some View {
         VStack(spacing: 0) {
             HStack {
                 ModeSwitch(mode: .camera, copy: copy, primary: .white, secondary: Color(hex: 0xB7B7B2)) { model.setMode($0) }
@@ -76,8 +76,10 @@ struct CameraScreen: View {
             }
             .padding(.horizontal, 8)
             .padding(.top, safe.top + 4)
-            frame(in: CGSize(width: size.width - 8, height: max(1, size.height - safe.top - safe.bottom - 250)))
-                .padding(.horizontal, 4)
+            GeometryReader { mid in
+                frame(in: mid.size)
+            }
+            .padding(.horizontal, 4)
             if model.guidance != nil && model.preview == nil {
                 guidanceBanner.padding(.bottom, 8)
             }
@@ -98,25 +100,19 @@ struct CameraScreen: View {
         }
     }
 
-    private func landscapeStage(safe: EdgeInsets, size: CGSize) -> some View {
+    private func landscapeStage(safe: EdgeInsets) -> some View {
         let leading = safe.leading
         let trailing = safe.trailing
         return HStack(spacing: 0) {
             if shutterOnEnd {
                 utilityRail.frame(width: CGFloat(CameraStageMetrics.utilityRail)).padding(.leading, leading)
-                frame(in: CGSize(
-                    width: max(1, size.width - CGFloat(CameraStageMetrics.utilityRail + CameraStageMetrics.shutterRail + CameraStageMetrics.zoomRail) - leading - trailing - 8),
-                    height: max(1, size.height - safe.top - safe.bottom - 8)
-                ))
+                GeometryReader { mid in frame(in: mid.size) }
                 zoomColumn.frame(width: CGFloat(CameraStageMetrics.zoomRail))
                 captureRail.frame(width: CGFloat(CameraStageMetrics.shutterRail)).padding(.trailing, trailing)
             } else {
                 captureRail.frame(width: CGFloat(CameraStageMetrics.shutterRail)).padding(.leading, leading)
                 zoomColumn.frame(width: CGFloat(CameraStageMetrics.zoomRail))
-                frame(in: CGSize(
-                    width: max(1, size.width - CGFloat(CameraStageMetrics.utilityRail + CameraStageMetrics.shutterRail + CameraStageMetrics.zoomRail) - leading - trailing - 8),
-                    height: max(1, size.height - safe.top - safe.bottom - 8)
-                ))
+                GeometryReader { mid in frame(in: mid.size) }
                 utilityRail.frame(width: CGFloat(CameraStageMetrics.utilityRail)).padding(.trailing, trailing)
             }
         }
@@ -124,10 +120,12 @@ struct CameraScreen: View {
     }
 
     private func frame(in available: CGSize) -> some View {
-        let aspect: Float = available.width > available.height ? 4 / 3 : 3 / 4
+        let width = max(available.width, 1)
+        let height = max(available.height, 1)
+        let aspect: Float = width > height ? 4 / 3 : 3 / 4
         let fit = WatermarkMetrics.fitFrame(
-            availWidth: Float(available.width),
-            availHeight: Float(available.height),
+            availWidth: Float(width),
+            availHeight: Float(height),
             photoAspect: aspect,
             style: model.prefs.watermarkStyle,
             hasPlace: model.prefs.showPlace && model.placeName != nil
@@ -273,7 +271,15 @@ struct CameraScreen: View {
             }
         }
         return Group {
-            if vertical { VStack(spacing: 6) { chips } } else { HStack(spacing: 6) { chips }.padding(.top, 8) }
+            if vertical {
+                VStack(spacing: 6) { chips }
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) { chips }
+                        .padding(.horizontal, 12)
+                        .padding(.top, 8)
+                }
+            }
         }
     }
 

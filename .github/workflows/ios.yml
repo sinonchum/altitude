@@ -137,6 +137,27 @@ jobs:
             ditto -c -k --keepParent ios/build/Altitude.xcarchive ios/build/Altitude-unsigned.xcarchive.zip
           fi
 
+      - name: Collect screenshots
+        if: always()
+        run: |
+          mkdir -p ios/build/screenshots
+          find "$GITHUB_WORKSPACE" "$HOME" -type d -name altitude-screenshots -prune -exec cp {}/*.png ios/build/screenshots/ \; || true
+          if [ -d ios/build/TestResults.xcresult ]; then
+            rm -rf ios/build/xcattachments
+            xcrun xcresulttool export attachments \
+              --path ios/build/TestResults.xcresult \
+              --output-path ios/build/xcattachments \
+              || xcrun xcresulttool export \
+                --type attachments \
+                --path ios/build/TestResults.xcresult \
+                --output-path ios/build/xcattachments \
+              || true
+            if [ -d ios/build/xcattachments ]; then
+              find ios/build/xcattachments -name '*.png' -exec cp {} ios/build/screenshots/ \;
+            fi
+          fi
+          find ios/build/screenshots -name '*.png' -print
+
       - name: Upload screenshots
         if: always()
         uses: actions/upload-artifact@v4

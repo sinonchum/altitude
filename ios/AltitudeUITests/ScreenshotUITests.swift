@@ -62,6 +62,7 @@ final class ScreenshotUITests: XCTestCase {
     }
 
     private func assertLandscape(lens: String, flash: Bool, file: String) throws {
+        XCUIDevice.shared.orientation = .landscapeLeft
         let app = launch(preview: "camera", language: "en", lens: lens, flash: flash)
         XCUIDevice.shared.orientation = .landscapeLeft
         let stage = element(app, "camera.stage")
@@ -69,7 +70,7 @@ final class ScreenshotUITests: XCTestCase {
         XCTAssertTrue(preview.waitForExistence(timeout: 20))
         let laidOut = expectation(for: NSPredicate { _, _ in
             stage.frame.width > stage.frame.height && preview.frame.height > 40
-        }, evaluatedWith: nil)
+        }, evaluatedWith: nil, handler: nil)
         wait(for: [laidOut], timeout: 12)
         let fraction = preview.frame.height / max(stage.frame.height, 1)
         XCTAssertGreaterThanOrEqual(fraction, 0.70, "preview \(preview.frame) stage \(stage.frame)")
@@ -102,19 +103,36 @@ final class ScreenshotUITests: XCTestCase {
         attachment.name = name
         attachment.lifetime = .keepAlways
         add(attachment)
-        let directory = screenshotDirectory()
-        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        let url = directory.appendingPathComponent("\(name).png")
-        try? screenshot.pngRepresentation.write(to: url)
+        var written = false
+        for directory in screenshotDirectories() {
+            do {
+                try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+                try screenshot.pngRepresentation.write(to: directory.appendingPathComponent("\(name).png"))
+                written = true
+                break
+            } catch {
+                continue
+            }
+        }
+        XCTAssertTrue(written, "Could not write \(name).png")
     }
 
-    private func screenshotDirectory() -> URL {
+    private func screenshotDirectories() -> [URL] {
+        var directories: [URL] = []
         if let raw = ProcessInfo.processInfo.environment["SCREENSHOT_DIR"], !raw.isEmpty {
-            return URL(fileURLWithPath: raw, isDirectory: true)
+            directories.append(URL(fileURLWithPath: raw, isDirectory: true))
         }
-        return URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .appendingPathComponent("build/screenshots", isDirectory: true)
+        directories.append(
+            URL(fileURLWithPath: #filePath)
+                .deletingLastPathComponent()
+                .deletingLastPathComponent()
+                .appendingPathComponent("build/screenshots", isDirectory: true)
+        )
+        directories.append(
+            URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+                .appendingPathComponent("altitude-screenshots", isDirectory: true)
+        )
+        return directories
     }
+
 }
