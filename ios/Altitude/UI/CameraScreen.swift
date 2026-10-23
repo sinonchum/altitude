@@ -51,7 +51,6 @@ struct CameraScreen: View {
             }
         }
         .ignoresSafeArea()
-        .accessibilityIdentifier("screen.camera")
         .onAppear(perform: configure)
         .onChange(of: model.prefs.frontCamera) { _, _ in configure() }
     }
@@ -149,6 +148,7 @@ struct CameraScreen: View {
         }
         .frame(width: width, height: height)
         .clipped()
+        .accessibilityIdentifier("camera.preview")
         .gesture(pinch)
         .simultaneousGesture(tap)
     }
@@ -159,7 +159,6 @@ struct CameraScreen: View {
                 MockScene(front: model.prefs.frontCamera)
             } else {
                 CameraPreview(session: session.session) { previewView = $0 }
-                    .accessibilityIdentifier("camera.preview")
             }
         }
     }
@@ -197,6 +196,7 @@ struct CameraScreen: View {
             .contentShape(Rectangle())
             .gesture(pinch)
             .simultaneousGesture(tap)
+            .accessibilityIdentifier("camera.preview")
             .accessibilityLabel(copy.text("cd_camera_preview"))
             if model.prefs.watermarkStyle != .caption {
                 WatermarkPlate(

@@ -149,6 +149,5 @@ struct MockScene: View {
                 context.stroke(Path(ellipseIn: face.insetBy(dx: 8, dy: 8)), with: .color(Color.white.opacity(0.35)), lineWidth: 2)
             }
         }
-        .accessibilityIdentifier("camera.preview")
     }
 }
