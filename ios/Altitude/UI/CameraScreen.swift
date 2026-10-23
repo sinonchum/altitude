@@ -24,7 +24,7 @@ struct CameraScreen: View {
     var body: some View {
         GeometryReader { geo in
             let landscape = geo.size.width > geo.size.height
-            let safe = resolvedSafeArea(geo)
+            let safe = geo.safeAreaInsets
             ZStack {
                 Color.black.ignoresSafeArea()
                 if !model.cameraGranted && model.preview == nil {
@@ -151,17 +151,6 @@ struct CameraScreen: View {
         .clipped()
         .gesture(pinch)
         .simultaneousGesture(tap)
-    }
-
-    private func resolvedSafeArea(_ geo: GeometryProxy) -> EdgeInsets {
-        let reported = geo.safeAreaInsets
-        let window = WindowSafeArea.current
-        return EdgeInsets(
-            top: max(reported.top, window.top),
-            leading: max(reported.leading, window.leading),
-            bottom: max(reported.bottom, window.bottom),
-            trailing: max(reported.trailing, window.trailing)
-        )
     }
 
     private var scene: some View {
@@ -572,15 +561,6 @@ struct CameraScreen: View {
             UIColor(red: 0.15, green: 0.28, blue: 0.42, alpha: 1).setFill()
             context.fill(CGRect(x: 0, y: 0, width: 1200, height: 1600))
         }
-    }
-}
-
-enum WindowSafeArea {
-    static var current: EdgeInsets {
-        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
-        let window = scenes.flatMap(\.windows).first { $0.isKeyWindow } ?? scenes.flatMap(\.windows).first
-        let inset = window?.safeAreaInsets ?? .zero
-        return EdgeInsets(top: inset.top, leading: inset.left, bottom: inset.bottom, trailing: inset.right)
     }
 }
 
