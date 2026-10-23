@@ -177,18 +177,18 @@ Acceptance:
 
 ## Checklist
 
-Status values: `fail` until the macOS workflow has proved the row. Updated after CI.
+Status values: `pass` only after a green macOS workflow. Evidence: [run 39942210594](https://github.com/sinonchum/altitude/actions/runs/39942210594) on iPhone 17 Pro (Xcode 26.6, iOS 26.5). 63 unit tests passed, including the ported Nominatim payloads, catalog parity, and the watermark JPEG size plus GPS and TIFF software tags. All 8 UI screenshot tests passed, including the landscape preview fraction. Artifacts: `ios-screenshots`, `ios-unsigned-build`, `ios-xcresult`.
 
 | ID | Criterion | Status |
 | --- | --- | --- |
-| A0 | PRD and this plan exist and cover the Android surface | pending |
-| A1 | Domain XCTest suite passes on the iPhone simulator | pending |
-| A2 | String catalog parity test passes | pending |
-| A3 | Watermark JPEG size and GPS metadata test passes | pending |
-| A4 | Display and trilingual settings screenshots are produced | pending |
-| A5 | Portrait and landscape, back and front, camera screenshots are produced | pending |
-| A6 | Landscape UI test checks the preview fraction | pending |
-| A7 | Unsigned build artifact is uploaded | pending |
-| A8 | Workflow run is green | pending |
+| A0 | PRD and this plan exist and cover the Android surface | pass |
+| A1 | Domain XCTest suite passes on the iPhone simulator | pass |
+| A2 | String catalog parity test passes | pass |
+| A3 | Watermark JPEG size and GPS metadata test passes | pass |
+| A4 | Display and trilingual settings screenshots are produced | pass |
+| A5 | Portrait and landscape, back and front, camera screenshots are produced | pass |
+| A6 | Landscape UI test checks the preview fraction | pass |
+| A7 | Unsigned build artifact is uploaded | pass |
+| A8 | Workflow run is green | pass |
 
 Version shown in Settings: **1.0.0 (1)**.
