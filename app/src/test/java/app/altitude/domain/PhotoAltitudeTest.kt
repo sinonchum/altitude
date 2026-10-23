@@ -66,22 +66,22 @@ class PhotoAltitudeTest {
     fun noticesDistinguishHiddenLocationFromAPhotoThatHasNone() {
         assertEquals(
             ImportNoticeKind.NO_LOCATION,
-            importNoticeKind(hasCoordinates = false, altitude = null, mediaLocationGranted = true),
+            importNoticeKind(hasCoordinates = false, altitude = null, locationRedacted = false),
         )
         assertEquals(
             ImportNoticeKind.LOCATION_HIDDEN,
-            importNoticeKind(hasCoordinates = false, altitude = null, mediaLocationGranted = false),
+            importNoticeKind(hasCoordinates = false, altitude = null, locationRedacted = true),
         )
         assertEquals(
             ImportNoticeKind.NONE,
-            importNoticeKind(hasCoordinates = true, altitude = null, mediaLocationGranted = true),
+            importNoticeKind(hasCoordinates = true, altitude = null, locationRedacted = false),
         )
         assertEquals(
             ImportNoticeKind.COMPUTED_ALTITUDE,
             importNoticeKind(
                 hasCoordinates = true,
                 altitude = SelectedAltitude(10.0, AltitudeProvenance.COMPUTED),
-                mediaLocationGranted = true,
+                locationRedacted = false,
             ),
         )
         assertEquals(
@@ -89,7 +89,7 @@ class PhotoAltitudeTest {
             importNoticeKind(
                 hasCoordinates = true,
                 altitude = SelectedAltitude(null, AltitudeProvenance.MISSING),
-                mediaLocationGranted = true,
+                locationRedacted = false,
             ),
         )
         assertEquals(
@@ -97,7 +97,7 @@ class PhotoAltitudeTest {
             importNoticeKind(
                 hasCoordinates = true,
                 altitude = SelectedAltitude(10.0, AltitudeProvenance.FROM_PHOTO),
-                mediaLocationGranted = false,
+                locationRedacted = true,
             ),
         )
     }

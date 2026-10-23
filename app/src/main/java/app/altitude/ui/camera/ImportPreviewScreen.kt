@@ -1,8 +1,10 @@
 package app.altitude.ui.camera
 
-import android.Manifest
+import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -60,11 +62,16 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.altitude.R
+import app.altitude.domain.AccessAction
 import app.altitude.domain.AltitudeUnit
 import app.altitude.domain.CaptionAnchor
 import app.altitude.domain.ImportNoticeKind
 import app.altitude.domain.WatermarkStyle
+import app.altitude.domain.accessAction
+import app.altitude.domain.grantsToRequest
 import app.altitude.domain.importNoticeKind
+import app.altitude.gallery.currentMediaGrants
+import app.altitude.gallery.permissionName
 import app.altitude.gallery.PhotoFrames
 import app.altitude.i18n.rememberLocalFormat
 import app.altitude.ui.theme.Outfit
@@ -98,16 +105,14 @@ fun ImportPreviewScreen(
     val files = remember { ImportFiles(context) }
     val scope = rememberCoroutineScope()
     var accessGeneration by remember { mutableIntStateOf(0) }
-    var mediaGranted by remember { mutableStateOf(mediaLocationGranted(context)) }
     var pages by remember(uris) { mutableStateOf(uris.map { ImportedPage(it) }) }
     var saving by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf<String?>(null) }
     val frames = remember { mutableStateMapOf<String, Bitmap>() }
     val retained = remember { mutableListOf<Bitmap>() }
     val pagesState = rememberUpdatedState(pages)
-    val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        mediaGranted = granted || mediaLocationGranted(context)
-        if (mediaGranted) accessGeneration += 1
+    val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+        accessGeneration += 1
     }
 
     DisposableEffect(files) {
@@ -121,7 +126,6 @@ fun ImportPreviewScreen(
     }
 
     LaunchedEffect(uris, accessGeneration, showPlace, language) {
-        mediaGranted = mediaLocationGranted(context)
         retained += frames.values
         pagesState.value.forEach { page -> page.preview?.let { retained += it } }
         frames.clear()
@@ -213,7 +217,7 @@ fun ImportPreviewScreen(
         notice = importNoticeKind(
             hasCoordinates = current?.capture?.hasCoordinates == true,
             altitude = current?.altitude,
-            mediaLocationGranted = mediaGranted,
+            locationRedacted = current?.locationRedacted == true,
         ),
         showNotice = current?.capture != null,
         resolving = current?.capture?.hasCoordinates == true && current.altitude == null && current.errorRes == null,
@@ -227,7 +231,19 @@ fun ImportPreviewScreen(
         onStyle = onStyle,
         onAnchor = onAnchor,
         onClose = onClose,
-        onAllowLocations = { permission.launch(Manifest.permission.ACCESS_MEDIA_LOCATION) },
+        onAllowLocations = {
+            val sdk = Build.VERSION.SDK_INT
+            val grants = currentMediaGrants(context)
+            if (accessAction(sdk, grants) == AccessAction.REQUEST) {
+                val names = grantsToRequest(sdk).map { permissionName(it) }.toTypedArray()
+                permission.launch(names)
+            } else {
+                context.startActivity(
+                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                        .setData(Uri.fromParts("package", context.packageName, null)),
+                )
+            }
+        },
         onSave = {
             if (saving || current?.ready != true) return@ImportPreviewScaffold
             scope.launch {

@@ -27,6 +27,7 @@ import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.unit.dp
 import app.altitude.R
 import app.altitude.domain.AltitudeProvenance
+import app.altitude.domain.LibraryAccess
 import app.altitude.domain.AltitudeUnit
 import app.altitude.domain.SelectedAltitude
 import app.altitude.domain.CaptionAnchor
@@ -87,6 +88,17 @@ class ImportPreviewScreenshotTest {
         rule.onNodeWithText(RuntimeEnvironment.getApplication().getString(R.string.gallery_empty)).assertIsDisplayed()
         save("import_entry_screen", "import-entry")
     }
+
+    @Test
+    fun englishChooserShowsPartialAccess() = showChooser("en")
+
+    @Test
+    @Config(qualifiers = "fr-rFR-w1280dp-h1280dp-xhdpi")
+    fun frenchChooserShowsPartialAccess() = showChooser("fr")
+
+    @Test
+    @Config(qualifiers = "zh-rCN-w1280dp-h1280dp-xhdpi")
+    fun chineseChooserShowsPartialAccess() = showChooser("zh")
 
     @Test
     fun landscapePhotoShowsTheFrame() {
@@ -157,6 +169,34 @@ class ImportPreviewScreenshotTest {
         assertEquals(mountTop.height, mountBottom.height)
         assertTrue(isWhite(mountTop, mountTop.width / 2, 40))
         assertFalse(isWhite(mountBottom, mountBottom.width / 2, 40))
+    }
+
+    private fun showChooser(suffix: String) {
+        rule.setContent {
+            Box(Modifier.requiredSize(411.dp, 891.dp)) {
+                ImportChooser(
+                    onClose = {},
+                    onPicked = {},
+                    sample = ImportChooserSample(
+                        access = LibraryAccess.PARTIAL,
+                        locationGranted = false,
+                        count = 9,
+                        selected = setOf(0, 4),
+                    ),
+                )
+            }
+        }
+        rule.waitForIdle()
+        val context = RuntimeEnvironment.getApplication()
+        listOf(
+            R.string.import_partial_title,
+            R.string.import_partial_body,
+            R.string.import_allow_photos,
+            R.string.import_use_selected,
+            R.string.import_browse,
+            R.string.import_chooser_title,
+        ).forEach { id -> assertTextFits(context.getString(id)) }
+        save("import_chooser", "import-chooser-partial-$suffix")
     }
 
     private fun renderLocale(suffix: String) {
