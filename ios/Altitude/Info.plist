@@ -38,7 +38,7 @@
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Altitude saves photos with the altitude watermark into your library.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Altitude reads the photos it saved in the Altitude album so you can view them in the app.</string>
+	<string>Altitude reads photos you import, including their location, time, and altitude, and shows the copies it saved in the Altitude album.</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>outfit_regular.ttf</string>

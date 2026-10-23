@@ -75,21 +75,59 @@ jobs:
       - name: Prepare screenshot directory
         run: mkdir -p ios/build/screenshots
 
+      - name: Build tests
+        run: |
+          set -o pipefail
+          xcodebuild build-for-testing \
+            -project ios/Altitude.xcodeproj \
+            -scheme Altitude \
+            -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
+            -derivedDataPath ios/build/DerivedData \
+            CODE_SIGNING_ALLOWED=YES \
+            CODE_SIGN_IDENTITY=- \
+            DEVELOPMENT_TEAM= \
+            | tee ios/build/xcodebuild-build.log
+
+      - name: Grant simulator privacy before screenshots
+        run: |
+          set -o pipefail
+          UDID="${{ steps.sim.outputs.udid }}"
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID" -b
+          APP="ios/build/DerivedData/Build/Products/Debug-iphonesimulator/Altitude.app"
+          if [ ! -d "$APP" ]; then
+            APP=$(find ios/build/DerivedData/Build/Products -type d -name 'Altitude.app' | head -1)
+          fi
+          test -d "$APP"
+          xcrun simctl install "$UDID" "$APP"
+          for service in photos location camera; do
+            xcrun simctl privacy "$UDID" grant "$service" app.altitude.ios
+          done
+
       - name: Run unit and UI tests
         run: |
           set -o pipefail
-          xcodebuild test \
-            -project ios/Altitude.xcodeproj \
-            -scheme Altitude \
+          XCTESTRUN=$(find ios/build/DerivedData/Build/Products -name '*.xctestrun' ! -name '*iphoneos*' | head -1)
+          test -n "$XCTESTRUN"
+          xcodebuild test-without-building \
+            -xctestrun "$XCTESTRUN" \
             -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
             -derivedDataPath ios/build/DerivedData \
             -resultBundlePath ios/build/TestResults.xcresult \
             -retry-tests-on-failure \
             -test-iterations 2 \
-            CODE_SIGNING_ALLOWED=YES \
-            CODE_SIGN_IDENTITY=- \
-            DEVELOPMENT_TEAM= \
             | tee ios/build/xcodebuild.log
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-xcresult
+          path: |
+            ios/build/TestResults.xcresult
+            ios/build/xcodebuild.log
+            ios/build/xcodebuild-build.log
+          if-no-files-found: warn
 
       - name: Package the simulator app
         if: always()
@@ -172,10 +210,26 @@ jobs:
               "camera-portrait-front",
               "camera-landscape-back",
               "camera-landscape-front",
+              "import-entry",
+              "import-entry-landscape",
+              "import-portrait-photo",
+              "import-portrait-photo-landscape",
+              "import-portrait-photo-zh",
+              "import-portrait-photo-fr",
+              "import-landscape-photo",
+              "import-landscape-photo-landscape",
+              "import-nogps",
+              "import-nogps-landscape",
+              "import-nogps-zh",
+              "import-nogps-fr",
+              "import-nogps-fr-landscape",
+              "import-computed",
+              "import-computed-landscape",
           )
           for match in re.finditer(r'File:\s*(\S+\.png),\s*suggested name:\s*"([^"]+)"', text):
               source_name, suggested = match.group(1), match.group(2)
-              stable = next((name for name in wanted if suggested.startswith(name)), None)
+              matches = [name for name in wanted if suggested == name or suggested.startswith(name)]
+              stable = max(matches, key=len) if matches else None
               if stable is None:
                   continue
               found = None
@@ -193,7 +247,7 @@ jobs:
           echo "screenshot directory:"
           find ios/build/screenshots -name '*.png' -print
           missing=0
-          for name in display-en settings-en settings-zh settings-fr camera-portrait-back camera-portrait-front camera-landscape-back camera-landscape-front; do
+          for name in display-en settings-en settings-zh settings-fr camera-portrait-back camera-portrait-front camera-landscape-back camera-landscape-front import-entry import-entry-landscape import-portrait-photo import-portrait-photo-landscape import-portrait-photo-zh import-portrait-photo-fr import-landscape-photo import-landscape-photo-landscape import-nogps import-nogps-landscape import-nogps-zh import-nogps-fr import-nogps-fr-landscape import-computed import-computed-landscape; do
             if [ ! -f "ios/build/screenshots/${name}.png" ]; then
               echo "missing ${name}.png"
               missing=1
@@ -209,16 +263,6 @@ jobs:
         with:
           name: ios-screenshots
           path: ios/build/screenshots/*.png
-          if-no-files-found: warn
-
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ios-xcresult
-          path: |
-            ios/build/TestResults.xcresult
-            ios/build/xcodebuild.log
           if-no-files-found: warn
 
       - name: Upload unsigned builds

@@ -86,7 +86,7 @@ struct CameraScreen: View {
             HStack {
                 ModeSwitch(mode: .camera, copy: copy, primary: .white, secondary: Color(hex: 0xB7B7B2)) { model.setMode($0) }
                 Spacer()
-                tools(stacked: false)
+                tools(stacked: false, includeImport: true)
             }
             .padding(.horizontal, 8)
             .padding(.top, 4)
@@ -375,7 +375,7 @@ struct CameraScreen: View {
                 ModeSwitch(mode: .camera, copy: copy, primary: .white, secondary: Color(hex: 0xB7B7B2), vertical: true) { model.setMode($0) }
                 styleRow(vertical: true)
                 if model.prefs.watermarkStyle == .caption { anchorRow(vertical: true) }
-                tools(stacked: true)
+                tools(stacked: true, includeImport: false)
             }
             .padding(.vertical, 8)
         }
@@ -387,12 +387,20 @@ struct CameraScreen: View {
             Spacer()
             ShutterButton(enabled: model.cameraGranted || model.preview != nil, busy: busy, label: copy.text("cd_shutter")) { shoot() }
             Spacer()
+            importButton
             thumbnail
         }
         .padding(.vertical, 12)
     }
 
-    private func tools(stacked: Bool) -> some View {
+    private var importButton: some View {
+        CircleTool(systemName: AppSymbols.importPhoto, accessibility: copy.text("cd_import_photo")) {
+            Task { await model.beginImport() }
+        }
+        .accessibilityIdentifier("import.photo")
+    }
+
+    private func tools(stacked: Bool, includeImport: Bool) -> some View {
         let content = Group {
             if showFlash {
                 CircleTool(
@@ -406,6 +414,9 @@ struct CameraScreen: View {
             }
             CircleTool(systemName: AppSymbols.settings, accessibility: copy.text("cd_settings")) {
                 model.settingsOpen = true
+            }
+            if includeImport {
+                importButton
             }
         }
         return Group {
@@ -429,7 +440,7 @@ struct CameraScreen: View {
     }
 
     private var thumbnail: some View {
-        Button { model.galleryOpen = true } label: {
+        Button { model.openGallery() } label: {
             Group {
                 if let photo = model.photos.first {
                     LibraryThumb(photo: photo)

@@ -2,15 +2,18 @@ import AVFoundation
 import CoreLocation
 import CoreMotion
 import Observation
+import Photos
+import PhotosUI
 import SwiftUI
 import UIKit
 
 struct PreviewLaunch {
-    enum Kind { case display, settings, camera }
+    enum Kind { case display, settings, camera, photoImport }
     var kind: Kind
     var language: AppLanguage
     var front: Bool
     var flash: Bool
+    var fixture: String
 
     var place: String {
         switch language {
@@ -26,6 +29,7 @@ struct PreviewLaunch {
         switch arguments[index + 1] {
         case "settings": kind = .settings
         case "camera": kind = .camera
+        case "import": kind = .photoImport
         default: kind = .display
         }
         let language = Self.flag(arguments, "-uiLang").flatMap { tag -> AppLanguage? in
@@ -38,7 +42,8 @@ struct PreviewLaunch {
             kind: kind,
             language: language,
             front: Self.flag(arguments, "-uiLens") == "front",
-            flash: Self.flag(arguments, "-uiFlash") == "1"
+            flash: Self.flag(arguments, "-uiFlash") == "1",
+            fixture: Self.flag(arguments, "-uiImport") ?? "portrait"
         )
     }
 
@@ -81,11 +86,23 @@ final class AppModel: NSObject, CLLocationManagerDelegate {
     var geoidReady = false
     var language: AppLanguage = .system
     var deleteCandidate: LibraryPhoto?
+    var importPickerPresented = false
+    var importSelection: [PhotosPickerItem] = []
+    var importOpen = false
+    var importPages: [ImportPage] = []
+    var importIndex = 0
+    var importReading = false
+    var importSaving = false
+    var importSavedCount = 0
+    var importSaveTotal = 0
+    var importNeedsAccess = false
+    var importLimited = false
 
     let preview: PreviewLaunch?
     private let store = PreferenceStore()
     private let fusion = AltitudeFusion()
     private let places = PlaceDirectory()
+    private let elevations = ElevationDirectory()
     private let location = CLLocationManager()
     private let altimeter = CMAltimeter()
     private var geoid: GeoidModel?
@@ -135,7 +152,6 @@ final class AppModel: NSObject, CLLocationManagerDelegate {
             }
         }
         ensureLocation()
-        refreshAlbum()
     }
 
     func setMode(_ mode: AppMode) { self.mode = mode }
@@ -191,8 +207,17 @@ final class AppModel: NSObject, CLLocationManagerDelegate {
     }
 
     func requestCamera() async {
-        let granted = await AVCaptureDevice.requestAccess(for: .video)
-        cameraGranted = granted
+        switch AVCaptureDevice.authorizationStatus(for: .video) {
+        case .authorized:
+            cameraGranted = true
+        case .notDetermined:
+            cameraGranted = await AVCaptureDevice.requestAccess(for: .video)
+        case .denied, .restricted:
+            cameraGranted = false
+            openSettings()
+        @unknown default:
+            cameraGranted = await AVCaptureDevice.requestAccess(for: .video)
+        }
     }
 
     func refreshPermissions() {
@@ -205,9 +230,189 @@ final class AppModel: NSObject, CLLocationManagerDelegate {
         ensureLocation()
     }
 
+    var photoRead = PHAuthorizationStatus.notDetermined
+
     func refreshAlbum() {
-        guard preview == nil else { return }
+        guard preview == nil, PhotoStore.canRead() else { return }
         photos = PhotoStore.list()
+    }
+
+    func openGallery() {
+        guard preview == nil else {
+            galleryOpen = true
+            return
+        }
+        photoRead = PhotoStore.readStatus()
+        galleryOpen = true
+        if PhotoStore.canRead() {
+            Task {
+                await PhotoStore.adoptPending()
+                refreshAlbum()
+            }
+        }
+    }
+
+    func allowPhotoRead() async {
+        let status = await PhotoStore.requestRead()
+        photoRead = status
+        importLimited = status == .limited
+        if status == .authorized || status == .limited {
+            importNeedsAccess = false
+            await PhotoStore.adoptPending()
+            refreshAlbum()
+            if importOpen { importPickerPresented = true }
+        } else {
+            importNeedsAccess = true
+        }
+    }
+
+    func beginImport() async {
+        guard preview == nil else { return }
+        let status = PhotoStore.readStatus()
+        photoRead = status
+        switch status {
+        case .authorized:
+            importLimited = false
+            importNeedsAccess = false
+            importPickerPresented = true
+        case .limited:
+            // Limited access still exposes PHAsset.location for the assets the person picked.
+            importLimited = true
+            importNeedsAccess = false
+            importPickerPresented = true
+        case .notDetermined, .denied, .restricted:
+            importLimited = false
+            importNeedsAccess = true
+            importOpen = true
+        @unknown default:
+            importNeedsAccess = true
+            importOpen = true
+        }
+    }
+
+    func closeImport() {
+        importOpen = false
+        importNeedsAccess = false
+        importReading = false
+        importSaving = false
+        importPages = []
+        importIndex = 0
+        importSelection = []
+    }
+
+    func loadImport(_ items: [PhotosPickerItem]) async {
+        let chosen = Array(items.prefix(importSelectionLimit))
+        guard !chosen.isEmpty else { return }
+        importNeedsAccess = false
+        importOpen = true
+        importReading = true
+        importIndex = 0
+        importPages = []
+        var built: [ImportPage] = []
+        for (offset, item) in chosen.enumerated() {
+            let facts = await PhotoImporter.facts(for: item)
+            let identifier = item.itemIdentifier ?? "item-\(offset)"
+            if let page = PhotoImporter.makePage(
+                id: "\(offset)-\(identifier)",
+                data: facts.data,
+                assetLatitude: facts.latitude,
+                assetLongitude: facts.longitude,
+                assetWasReadable: facts.readable
+            ) {
+                built.append(page)
+            }
+        }
+        importPages = built
+        await resolveImportLookups()
+        importReading = false
+    }
+
+    func saveImport(all: Bool) async {
+        guard !importSaving else { return }
+        let pages: [ImportPage]
+        if all {
+            pages = importPages
+        } else if importPages.indices.contains(importIndex) {
+            pages = [importPages[importIndex]]
+        } else if let page = importPages.first {
+            pages = [page]
+        } else {
+            return
+        }
+        importSaving = true
+        importSavedCount = 0
+        importSaveTotal = pages.count
+        var failed = false
+        for page in pages {
+            if let data = framedJPEG(page) {
+                do {
+                    _ = try await PhotoStore.save(data)
+                    importSavedCount += 1
+                } catch {
+                    failed = true
+                }
+            } else {
+                failed = true
+            }
+        }
+        importSaving = false
+        refreshAlbum()
+        if failed {
+            reportSave("error_gallery_write")
+        }
+    }
+
+    private func resolveImportLookups() async {
+        let pending = importPages.enumerated().compactMap { index, page -> (Int, Double, Double)? in
+            guard page.altitude == nil, let latitude = page.capture.latitude, let longitude = page.capture.longitude else { return nil }
+            return (index, latitude, longitude)
+        }
+        if !pending.isEmpty {
+            let heights = await elevations.elevations(pending.map { ($0.1, $0.2) })
+            for (slot, item) in pending.enumerated() {
+                let lookup = heights.indices.contains(slot) ? heights[slot] : nil
+                importPages[item.0].altitude = selectPhotoAltitude(
+                    exifAltitudeMeters: importPages[item.0].capture.exifAltitudeMeters,
+                    elevationLookupMeters: lookup,
+                    hasCoordinates: true
+                )
+            }
+        }
+        guard prefs.showPlace else { return }
+        for index in importPages.indices {
+            guard let latitude = importPages[index].capture.latitude, let longitude = importPages[index].capture.longitude else { continue }
+            importPages[index].place = await places.resolve(latitude: latitude, longitude: longitude, language: language)
+        }
+    }
+
+    private func framedJPEG(_ page: ImportPage) -> Data? {
+        guard let image = UIImage(data: page.source) else { return nil }
+        let scaled = image.upright(maxEdge: PhotoImporter.saveEdge)
+        let content = copy.importWatermark(
+            capture: page.capture,
+            altitude: page.altitude,
+            place: page.place,
+            showPlace: prefs.showPlace,
+            unit: prefs.unit
+        )
+        let rendered = WatermarkRenderer.render(
+            photo: scaled,
+            content: content,
+            style: prefs.watermarkStyle,
+            anchor: prefs.captionAnchor
+        )
+        let clock = page.capture.clock
+        return PhotoJPEG.data(
+            image: rendered,
+            tags: PhotoJPEG.Tags(
+                latitude: page.capture.latitude,
+                longitude: page.capture.longitude,
+                altitudeMeters: page.altitude?.meters,
+                epochMs: nowMillis,
+                dateTimeOriginal: clock.map { formatExifWallClock($0.local) },
+                offsetTimeOriginal: clock?.offset.map(formatExifOffset)
+            )
+        )
     }
 
     func reportSave(_ key: String) {
@@ -313,8 +518,14 @@ final class AppModel: NSObject, CLLocationManagerDelegate {
             barometerCalibrated: true,
             calibrationOffsetMeters: nil
         )
-        mode = preview.kind == .camera ? .camera : .display
+        mode = preview.kind == .camera || preview.kind == .photoImport ? .camera : .display
         settingsOpen = preview.kind == .settings
+        importOpen = preview.kind == .photoImport
+        if preview.kind == .photoImport {
+            importPages = [ImportFixtures.page(kind: preview.fixture, place: preview.place)]
+            importIndex = 0
+            importReading = false
+        }
     }
 
     private func persist() { store.save(prefs) }

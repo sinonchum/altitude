@@ -54,19 +54,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Altitude reads the photos it saved in the Altitude album so you can view them in the app."
+            "value": "Altitude reads photos you import, including their location, time, and altitude, and shows the copies it saved in the Altitude album."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Altitude 读取它保存在 Altitude 相册里的照片，方便你在应用内查看。"
+            "value": "Altitude 读取你导入的照片，包括其中的位置、时间和海拔，并显示保存在 Altitude 相册里的副本。"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Altitude lit les photos enregistrées dans l’album Altitude pour que vous puissiez les voir dans l’app."
+            "value": "Altitude lit les photos que vous importez, y compris leur lieu, leur heure et leur altitude, et affiche les copies enregistrées dans l’album Altitude."
           }
         }
       }
