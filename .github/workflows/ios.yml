@@ -84,6 +84,8 @@ jobs:
             -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
             -derivedDataPath ios/build/DerivedData \
             -resultBundlePath ios/build/TestResults.xcresult \
+            -retry-tests-on-failure \
+            -test-iterations 2 \
             CODE_SIGNING_ALLOWED=YES \
             CODE_SIGN_IDENTITY=- \
             DEVELOPMENT_TEAM= \

@@ -22,35 +22,37 @@ struct CameraScreen: View {
     @State private var previewView: PreviewView?
 
     var body: some View {
-        GeometryReader { geo in
-            let landscape = geo.size.width > geo.size.height
-            let safe = geo.safeAreaInsets
-            ZStack {
-                Color.black.ignoresSafeArea()
-                if !model.cameraGranted && model.preview == nil {
-                    permission
-                        .safeAreaPadding(.horizontal, 28)
-                } else if landscape {
-                    landscapeStage(safe: safe)
-                } else {
-                    portraitStage(safe: safe)
+        ZStack {
+            Color.black.ignoresSafeArea()
+            GeometryReader { geo in
+                let landscape = geo.size.width > geo.size.height
+                let safe = geo.safeAreaInsets
+                ZStack {
+                    if !model.cameraGranted && model.preview == nil {
+                        permission
+                            .safeAreaPadding(.horizontal, 28)
+                    } else if landscape {
+                        landscapeStage(safe: safe)
+                    } else {
+                        portraitStage(safe: safe)
+                    }
+                    if flashCover {
+                        Color.white.ignoresSafeArea()
+                    }
+                    if let message = model.saveMessage {
+                        Text(message)
+                            .font(Outfit.medium(14))
+                            .foregroundStyle(Color(hex: 0x141414))
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 10)
+                            .background(Color(hex: 0xF4F1EA), in: Capsule())
+                            .frame(maxHeight: .infinity, alignment: .top)
+                            .padding(.top, 8)
+                    }
                 }
-                if flashCover {
-                    Color.white.ignoresSafeArea()
-                }
-                if let message = model.saveMessage {
-                    Text(message)
-                        .font(Outfit.medium(14))
-                        .foregroundStyle(Color(hex: 0x141414))
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
-                        .background(Color(hex: 0xF4F1EA), in: Capsule())
-                        .frame(maxHeight: .infinity, alignment: .top)
-                        .padding(.top, safe.top + 8)
-                }
+                .ignoresSafeArea(edges: landscape ? .vertical : [])
             }
         }
-        .ignoresSafeArea()
         .onAppear(perform: configure)
         .onChange(of: model.prefs.frontCamera) { _, _ in configure() }
     }
@@ -72,7 +74,10 @@ struct CameraScreen: View {
                 tools(stacked: false)
             }
             .padding(.horizontal, 8)
-            .padding(.top, safe.top + 4)
+            .padding(.top, 4)
+            .padding(.bottom, 4)
+            .frame(maxWidth: .infinity)
+            .background(Color.black)
             GeometryReader { mid in
                 frame(in: mid.size)
             }

@@ -1,3 +1,4 @@
+import UIKit
 import XCTest
 
 final class ScreenshotUITests: XCTestCase {
@@ -74,7 +75,7 @@ final class ScreenshotUITests: XCTestCase {
     }
 
     private func assertLandscape(lens: String, flash: Bool, file: String) throws {
-        XCUIDevice.shared.orientation = .landscapeLeft
+        // Rotate after launch. Turning the simulator before the first launch makes Xcode time out attaching.
         let app = launch(preview: "camera", language: "en", lens: lens, flash: flash)
         XCUIDevice.shared.orientation = .landscapeLeft
         let preview = element(app, "camera.preview")
@@ -127,7 +128,18 @@ final class ScreenshotUITests: XCTestCase {
         attachment.name = name
         attachment.lifetime = .keepAlways
         add(attachment)
-        let data = screenshot.pngRepresentation
+        var data = screenshot.pngRepresentation
+        if let image = UIImage(data: data), image.imageOrientation != .up {
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = image.scale
+            let renderer = UIGraphicsImageRenderer(size: image.size, format: format)
+            let upright = renderer.image { _ in
+                image.draw(in: CGRect(origin: .zero, size: image.size))
+            }
+            if let baked = upright.pngData() {
+                data = baked
+            }
+        }
         var written: [String] = []
         for directory in screenshotDirectories() {
             do {
