@@ -53,11 +53,9 @@ An emulator has no barometer. A phone with one labels the reading as satellite p
 
 ### Releases
 
-This tree is Android 1.4.1. Debug APKs are published as GitHub prereleases under tags `v*-debug`:
+This tree is Android 1.4.1, iOS 1.0.0. Debug APKs are published as GitHub prereleases under tags `v*-debug`:
 
 - [All releases](https://github.com/sinonchum/altitude/releases)
-
-Current debug APK: [Altitude 1.4.1](https://github.com/sinonchum/altitude/releases/download/v1.4.1-debug/Altitude-1.4.1-debug.apk).
 
 ### Data sources and attribution
 
@@ -70,7 +68,26 @@ Current debug APK: [Altitude 1.4.1](https://github.com/sinonchum/altitude/releas
 
 Altitude has no account and does not upload a track. Location, camera, and photo access are requested when those features are used.
 
-The live altitude is computed on the phone. Coordinates are sent to Nominatim when a place name is requested, and to Open-Meteo when an imported photo needs an elevation. Photos you take or frame are stored on the device in `Pictures/Altitude`.
+The live altitude is computed on the phone. Coordinates are sent to Nominatim when a place name is requested, and to Open-Meteo when an imported photo needs an elevation. Photos you take or frame are stored on the device in `Pictures/Altitude`. On iOS, photos are saved to a Photos album named Altitude.
+
+### iOS
+
+`ios/` is a native iPhone app for iOS 17 and later. This tree’s iOS version is 1.0.0. The bundle id is `app.altitude.ios`. It includes the full-screen altitude display, the stamped camera, the front and back cameras, and landscape shooting.
+
+Saved photos go into a Photos album named Altitude.
+
+Requirements: Xcode, and [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`).
+
+```bash
+cd ios
+xcodegen generate
+xcodebuild build \
+  -project Altitude.xcodeproj \
+  -scheme Altitude \
+  -destination 'platform=iOS Simulator,name=iPhone 17'
+```
+
+Pick an iPhone simulator installed on the machine. `xcrun simctl list devices available` shows the names. GitHub Actions runs the same project on `macos-latest` via [.github/workflows/ios.yml](.github/workflows/ios.yml): it generates the project, grants photo, location, and camera access on the simulator, then runs the unit and UI tests. The workflow does not use an Apple signing certificate. Product requirements for iOS are in [ios/docs/PRD.md](ios/docs/PRD.md). The Outfit license for the iOS copy is [ios/Altitude/Resources/Fonts/OFL.txt](ios/Altitude/Resources/Fonts/OFL.txt), and the same EGM96 grid is in the app bundle.
 
 <a id="zh"></a>
 
@@ -123,11 +140,9 @@ adb emu geo fix 91.117 29.652 3650
 
 ### 版本与下载
 
-本树为 Android 1.4.1。调试 APK 以 GitHub 预发布的形式挂在 `v*-debug` 标签上：
+本树为 Android 1.4.1 与 iOS 1.0.0。调试 APK 以 GitHub 预发布的形式挂在 `v*-debug` 标签上：
 
 - [全部发布](https://github.com/sinonchum/altitude/releases)
-
-当前调试包：[Altitude 1.4.1](https://github.com/sinonchum/altitude/releases/download/v1.4.1-debug/Altitude-1.4.1-debug.apk)。
 
 ### 数据来源与署名
 
@@ -140,4 +155,23 @@ adb emu geo fix 91.117 29.652 3650
 
 Altitude 没有账号，也不会上传轨迹。定位、相机和照片权限在使用对应功能时才会请求。
 
-实时海拔在手机上计算。请求地名时会把坐标发给 Nominatim；导入的照片需要补海拔时，会把坐标发给 Open-Meteo。拍摄或加框的照片保存在设备上的 `Pictures/Altitude`。
+实时海拔在手机上计算。请求地名时会把坐标发给 Nominatim；导入的照片需要补海拔时，会把坐标发给 Open-Meteo。拍摄或加框的照片保存在设备上的 `Pictures/Altitude`。在 iOS 上，照片保存在名为 Altitude 的相簿中。
+
+### iOS
+
+`ios/` 是面向 iPhone、系统为 iOS 17 及以上的原生应用。本树中的 iOS 版本是 1.0.0。Bundle id 为 `app.altitude.ios`。它包含全屏海拔、带水印的相机、前后摄和横屏拍摄。
+
+保存的照片进入名为 Altitude 的照片相簿。
+
+需要 Xcode，以及 [XcodeGen](https://github.com/yonaskolb/XcodeGen)（`brew install xcodegen`）。
+
+```bash
+cd ios
+xcodegen generate
+xcodebuild build \
+  -project Altitude.xcodeproj \
+  -scheme Altitude \
+  -destination 'platform=iOS Simulator,name=iPhone 17'
+```
+
+名称以本机已安装的 iPhone 模拟器为准，可用 `xcrun simctl list devices available` 查看。[.github/workflows/ios.yml](.github/workflows/ios.yml) 在 `macos-latest` 上生成工程，向模拟器授予照片、定位和相机权限，然后运行单元测试和界面测试。工作流不使用 Apple 签名证书。iOS 的产品需求见 [ios/docs/PRD.md](ios/docs/PRD.md)。iOS 所用 Outfit 的许可在 [ios/Altitude/Resources/Fonts/OFL.txt](ios/Altitude/Resources/Fonts/OFL.txt)，应用包内带有同一份 EGM96 网格。
