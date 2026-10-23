@@ -2,6 +2,7 @@ package app.altitude.ui.camera
 
 import androidx.camera.core.Camera
 import androidx.camera.core.FocusMeteringAction
+import androidx.camera.core.MeteringPoint
 import androidx.camera.view.PreviewView
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
@@ -56,6 +57,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.altitude.R
 import app.altitude.domain.CameraZoom
+import app.altitude.domain.FocusMeteringChoice
 import app.altitude.ui.theme.Outfit
 import kotlin.math.roundToInt
 import kotlinx.coroutines.withTimeoutOrNull
@@ -90,6 +92,11 @@ fun PreviewGestures(
         exposure?.isExposureCompensationSupported == true &&
         exposureRange != null &&
         exposureRange.upper > exposureRange.lower
+
+    LaunchedEffect(camera) {
+        focusAt = null
+        locked = false
+    }
 
     LaunchedEffect(focusToken, locked) {
         if (locked || focusAt == null) return@LaunchedEffect
@@ -128,10 +135,8 @@ fun PreviewGestures(
                             if (event == null) {
                                 longFired = true
                                 val active = camera
-                                if (active != null) {
-                                    val nextLock = !latestLocked
-                                    focusMetering(previewView, active, start, nextLock)
-                                    locked = nextLock
+                                if (active != null && focusMetering(previewView, active, start, !latestLocked)) {
+                                    locked = !latestLocked
                                     focusAt = start
                                     focusToken += 1
                                     exposureIndex = active.cameraInfo.exposureState.exposureCompensationIndex.toFloat()
@@ -156,8 +161,9 @@ fun PreviewGestures(
                             if (pressed.isEmpty()) break
                         }
                         val active = camera
-                        if (!pinch && !moved && !longFired && active != null) {
+                        if (!pinch && !moved && !longFired && active != null &&
                             focusMetering(previewView, active, start, lock = false)
+                        ) {
                             locked = false
                             focusAt = start
                             focusToken += 1
@@ -347,19 +353,32 @@ private fun FocusHud(
     }
 }
 
-private fun focusMetering(previewView: PreviewView, camera: Camera, offset: Offset, lock: Boolean) {
+private fun focusMetering(previewView: PreviewView, camera: Camera, offset: Offset, lock: Boolean): Boolean {
     val width = previewView.width.toFloat()
     val height = previewView.height.toFloat()
-    if (width <= 1f || height <= 1f) return
+    if (width <= 1f || height <= 1f) return false
     val x = offset.x.coerceIn(0f, width - 1f)
     val y = offset.y.coerceIn(0f, height - 1f)
     val point = previewView.meteringPointFactory.createPoint(x, y)
-    val flags = FocusMeteringAction.FLAG_AF or FocusMeteringAction.FLAG_AE
-    val builder = FocusMeteringAction.Builder(point, flags)
-    if (lock) {
-        builder.disableAutoCancel()
-    } else {
-        builder.setAutoCancelDuration(4, TimeUnit.SECONDS)
+    val flags = FocusMeteringChoice.select { mask ->
+        val candidate = meteringAction(point, mask, lock)
+        camera.cameraInfo.isFocusMeteringSupported(candidate)
+    } ?: return false
+    camera.cameraControl.startFocusAndMetering(meteringAction(point, flags, lock))
+    return true
+}
+
+private fun meteringAction(
+    point: MeteringPoint,
+    flags: Int,
+    lock: Boolean,
+): FocusMeteringAction {
+    val cameraFlags = when (flags) {
+        FocusMeteringChoice.AF or FocusMeteringChoice.AE -> FocusMeteringAction.FLAG_AF or FocusMeteringAction.FLAG_AE
+        FocusMeteringChoice.AE -> FocusMeteringAction.FLAG_AE
+        else -> FocusMeteringAction.FLAG_AF
     }
-    camera.cameraControl.startFocusAndMetering(builder.build())
+    val builder = FocusMeteringAction.Builder(point, cameraFlags)
+    if (lock) builder.disableAutoCancel() else builder.setAutoCancelDuration(4, TimeUnit.SECONDS)
+    return builder.build()
 }

@@ -1,6 +1,9 @@
 package app.altitude.ui.camera
 
+import android.app.Activity
+import android.content.pm.ActivityInfo
 import android.util.Rational
+import android.view.OrientationEventListener
 import android.view.Surface
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
@@ -11,6 +14,9 @@ import androidx.camera.core.UseCaseGroup
 import androidx.camera.core.ViewPort
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -35,12 +41,14 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Cameraswitch
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -58,6 +66,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -71,7 +80,11 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.foundation.Image
 import app.altitude.R
 import app.altitude.domain.AppMode
+import app.altitude.domain.CameraLens
+import app.altitude.domain.CameraLenses
 import app.altitude.domain.CaptionAnchor
+import app.altitude.domain.CaptureOrientation
+import app.altitude.domain.DevicePose
 import app.altitude.domain.WatermarkMetrics
 import app.altitude.domain.WatermarkStyle
 import app.altitude.gallery.decodeAlbumBitmap
@@ -87,6 +100,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
+import kotlin.math.min
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -97,6 +111,7 @@ fun CameraScreen(
     onMode: (AppMode) -> Unit,
     onStyle: (WatermarkStyle) -> Unit,
     onAnchor: (CaptionAnchor) -> Unit,
+    onFrontCamera: (Boolean) -> Unit,
     onOpenSettings: () -> Unit,
     onRequestCamera: () -> Unit,
     onRequestLocation: () -> Unit,
@@ -136,6 +151,64 @@ fun CameraScreen(
         }
     }
     var boundCamera by remember { mutableStateOf<Camera?>(null) }
+    var backLens by remember { mutableStateOf<Boolean?>(null) }
+    var frontLens by remember { mutableStateOf<Boolean?>(null) }
+    val preferredLens = if (state.prefs.frontCamera) CameraLens.FRONT else CameraLens.BACK
+    val lens = if (backLens == null || frontLens == null) {
+        preferredLens
+    } else {
+        CameraLenses.resolve(preferredLens, backLens == true, frontLens == true)
+    }
+    val showLensButton = CameraLenses.buttonVisible(backLens == true, frontLens == true)
+    var lensTurns by remember { mutableFloatStateOf(0f) }
+    val lensSpin by animateFloatAsState(lensTurns, tween(420), label = "lens")
+    val lensCover = remember { Animatable(0f) }
+    var lensCoverArmed by remember { mutableStateOf(false) }
+    LaunchedEffect(lens) {
+        if (!lensCoverArmed) {
+            lensCoverArmed = true
+            return@LaunchedEffect
+        }
+        lensCover.snapTo(0.72f)
+        lensCover.animateTo(0f, tween(320))
+    }
+    val view = LocalView.current
+    var deviceDegrees by remember { mutableIntStateOf(CaptureOrientation.UNKNOWN) }
+    DisposableEffect(context) {
+        var snapped = CaptureOrientation.UNKNOWN
+        val listener = object : OrientationEventListener(context) {
+            override fun onOrientationChanged(orientation: Int) {
+                val next = CaptureOrientation.snapDegrees(snapped, orientation)
+                if (next != snapped) {
+                    snapped = next
+                    deviceDegrees = next
+                }
+            }
+        }
+        if (listener.canDetectOrientation()) listener.enable()
+        onDispose { listener.disable() }
+    }
+    val activity = context as? Activity
+    DisposableEffect(activity) {
+        onDispose { activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_FULL_USER }
+    }
+    LaunchedEffect(deviceDegrees) {
+        if (deviceDegrees < 0) return@LaunchedEffect
+        activity?.requestedOrientation = when (CaptureOrientation.pose(deviceDegrees)) {
+            DevicePose.PORTRAIT -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            DevicePose.LANDSCAPE -> ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+            DevicePose.REVERSE_PORTRAIT -> ActivityInfo.SCREEN_ORIENTATION_REVERSE_PORTRAIT
+            DevicePose.REVERSE_LANDSCAPE -> ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE
+        }
+    }
+    val displayRotation = view.display?.rotation ?: Surface.ROTATION_0
+    val captureRotation = if (deviceDegrees < 0) displayRotation else CaptureOrientation.surfaceRotation(deviceDegrees)
+    val upright by animateFloatAsState(
+        CaptureOrientation.iconOffsetDegrees(if (deviceDegrees < 0) 0 else deviceDegrees, displayRotation).toFloat(),
+        tween(280),
+        label = "upright",
+    )
+    SideEffect { imageCapture.targetRotation = captureRotation }
     var zoomMin by remember { mutableFloatStateOf(1f) }
     var zoomMax by remember { mutableFloatStateOf(1f) }
     var zoomRatio by remember { mutableFloatStateOf(1f) }
@@ -179,16 +252,19 @@ fun CameraScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                ModeSwitch(
-                    mode = AppMode.CAMERA,
-                    primary = Color.White,
-                    secondary = Color(0xFFB7B7B2),
-                    background = Color.White.copy(alpha = 0.08f),
-                    onMode = onMode,
-                )
+                Box(Modifier.graphicsLayer { rotationZ = upright }) {
+                    ModeSwitch(
+                        mode = AppMode.CAMERA,
+                        primary = Color.White,
+                        secondary = Color(0xFFB7B7B2),
+                        background = Color.White.copy(alpha = 0.08f),
+                        onMode = onMode,
+                    )
+                }
                 Box(
                     modifier = Modifier
                         .size(44.dp)
+                        .graphicsLayer { rotationZ = upright }
                         .clip(CircleShape)
                         .background(Color.White.copy(alpha = 0.08f))
                         .semantics { contentDescription = settingsDescription }
@@ -261,9 +337,15 @@ fun CameraScreen(
                 BindCamera(
                     previewView = previewView,
                     imageCapture = imageCapture,
+                    front = lens == CameraLens.FRONT,
+                    rotation = captureRotation,
                     lifecycleOwner = LocalLifecycleOwner.current,
                     onError = { cameraError = it },
                     onCamera = { boundCamera = it },
+                    onLenses = { back, front ->
+                        backLens = back
+                        frontLens = front
+                    },
                 )
                 Column(
                     modifier = Modifier
@@ -289,6 +371,7 @@ fun CameraScreen(
                                     view.mode = SignatureMode.CAPTION
                                     view.anchor = state.prefs.captionAnchor
                                     view.content = content
+                                    view.metricPx = min(fit.photoWidth, fit.photoHeight)
                                     view.invalidate()
                                 },
                             )
@@ -317,6 +400,13 @@ fun CameraScreen(
                         if (zoomHud) {
                             ZoomReadout(ratio = zoomRatio, modifier = Modifier.align(Alignment.Center))
                         }
+                        if (lensCover.value > 0.01f) {
+                            Box(
+                                Modifier
+                                    .fillMaxSize()
+                                    .background(Color.Black.copy(alpha = lensCover.value)),
+                            )
+                        }
                     }
                     if (state.prefs.watermarkStyle != WatermarkStyle.CAPTION) {
                         AndroidView(
@@ -329,6 +419,7 @@ fun CameraScreen(
                                 view.mode = SignatureMode.PLATE
                                 view.dark = state.prefs.watermarkStyle == WatermarkStyle.PLATE_DARK
                                 view.content = content
+                                view.metricPx = min(fit.photoWidth, fit.photoHeight)
                                 view.invalidate()
                             },
                         )
@@ -388,6 +479,7 @@ fun CameraScreen(
                 Spacer(Modifier.height(10.dp))
             }
             if (boundCamera != null && zoomMax > zoomMin) {
+                Box(Modifier.graphicsLayer { rotationZ = upright }) {
                 ZoomControls(
                     ratio = zoomRatio,
                     min = zoomMin,
@@ -405,8 +497,11 @@ fun CameraScreen(
                     },
                 )
                 Spacer(Modifier.height(8.dp))
+                }
             }
-            StyleRow(state.prefs.watermarkStyle, onStyle)
+            Box(Modifier.graphicsLayer { rotationZ = upright }) {
+                StyleRow(state.prefs.watermarkStyle, onStyle)
+            }
             if (state.prefs.watermarkStyle == WatermarkStyle.CAPTION) {
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -451,7 +546,7 @@ fun CameraScreen(
                             indication = null,
                         ) {
                             context.captureTick()
-                            imageCapture.targetRotation = previewView.display?.rotation ?: Surface.ROTATION_0
+                            imageCapture.targetRotation = captureRotation
                             busy = true
                             scope.launch {
                                 val captured = runCatching {
@@ -477,7 +572,33 @@ fun CameraScreen(
                             }
                         },
                 )
-                Spacer(Modifier.size(52.dp))
+                if (showLensButton) {
+                    val front = lens == CameraLens.FRONT
+                    val switchDescription = stringResource(
+                        if (front) R.string.cd_switch_to_back else R.string.cd_switch_to_front,
+                    )
+                    Box(
+                        modifier = Modifier
+                            .size(52.dp)
+                            .graphicsLayer { rotationZ = upright + lensSpin }
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.08f))
+                            .semantics { contentDescription = switchDescription }
+                            .clickable(enabled = !busy) {
+                                lensTurns += 180f
+                                onFrontCamera(lens != CameraLens.FRONT)
+                            },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            Icons.Outlined.Cameraswitch,
+                            contentDescription = null,
+                            tint = Color.White,
+                        )
+                    }
+                } else {
+                    Spacer(Modifier.size(52.dp))
+                }
             }
         }
         }
@@ -575,17 +696,24 @@ private fun AnchorChip(label: String, selected: Boolean, onClick: () -> Unit) {
 private fun BindCamera(
     previewView: PreviewView,
     imageCapture: ImageCapture,
+    front: Boolean,
+    rotation: Int,
     lifecycleOwner: LifecycleOwner,
     onError: (Int?) -> Unit,
     onCamera: (Camera?) -> Unit,
+    onLenses: (Boolean, Boolean) -> Unit,
 ) {
     val context = LocalContext.current
     val currentOnCamera by rememberUpdatedState(onCamera)
-    DisposableEffect(previewView, imageCapture, lifecycleOwner) {
+    val currentOnLenses by rememberUpdatedState(onLenses)
+    val currentOnError by rememberUpdatedState(onError)
+    DisposableEffect(previewView, imageCapture, lifecycleOwner, front, rotation) {
         var disposed = false
         var providerRef: ProcessCameraProvider? = null
         var boundWidth = -1
         var boundHeight = -1
+        var boundFront = front
+        var boundRotation = rotation
         val future = ProcessCameraProvider.getInstance(context)
         val executor = ContextCompat.getMainExecutor(context)
         val bind = Runnable {
@@ -593,12 +721,23 @@ private fun BindCamera(
             val width = previewView.width
             val height = previewView.height
             if (width == 0 || height == 0) return@Runnable
-            if (width == boundWidth && height == boundHeight && providerRef != null) return@Runnable
+            if (
+                width == boundWidth &&
+                height == boundHeight &&
+                boundFront == front &&
+                boundRotation == rotation &&
+                providerRef != null
+            ) {
+                return@Runnable
+            }
             try {
                 val provider = future.get()
                 providerRef = provider
+                val back = runCatching { provider.hasCamera(CameraSelector.DEFAULT_BACK_CAMERA) }.getOrDefault(false)
+                val frontAvailable = runCatching { provider.hasCamera(CameraSelector.DEFAULT_FRONT_CAMERA) }.getOrDefault(false)
+                currentOnLenses(back, frontAvailable)
+                val useFront = (front && frontAvailable) || (!back && frontAvailable)
                 val preview = Preview.Builder().build().also { it.surfaceProvider = previewView.surfaceProvider }
-                val rotation = previewView.display?.rotation ?: Surface.ROTATION_0
                 imageCapture.targetRotation = rotation
                 preview.targetRotation = rotation
                 provider.unbindAll()
@@ -606,16 +745,18 @@ private fun BindCamera(
                 builder.setViewPort(ViewPort.Builder(Rational(width, height), rotation).build())
                 val camera = provider.bindToLifecycle(
                     lifecycleOwner,
-                    CameraSelector.DEFAULT_BACK_CAMERA,
+                    if (useFront) CameraSelector.DEFAULT_FRONT_CAMERA else CameraSelector.DEFAULT_BACK_CAMERA,
                     builder.build(),
                 )
                 currentOnCamera(camera)
                 boundWidth = width
                 boundHeight = height
-                onError(null)
-            } catch (error: Throwable) {
+                boundFront = front
+                boundRotation = rotation
+                currentOnError(null)
+            } catch (_: Throwable) {
                 currentOnCamera(null)
-                onError(R.string.error_camera_open)
+                currentOnError(R.string.error_camera_open)
             }
         }
         val layout = android.view.View.OnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->

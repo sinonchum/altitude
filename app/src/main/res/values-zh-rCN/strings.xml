@@ -71,6 +71,8 @@
     <string name="cd_unit_toggle">单位：%1$s。双击数字可切换。</string>
     <string name="cd_theme">主题：%1$s</string>
     <string name="cd_shutter">快门</string>
+    <string name="cd_switch_to_front">切换到前置摄像头</string>
+    <string name="cd_switch_to_back">切换到后置摄像头</string>
 
     <string name="settings_title">设置</string>
     <string name="settings_section_units">单位</string>

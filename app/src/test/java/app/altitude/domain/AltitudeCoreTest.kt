@@ -206,6 +206,30 @@ class WatermarkMetricsTest {
         assertEquals(0.75, (fit.photoWidth / fit.photoHeight).toDouble(), 0.001)
         assertEquals(162.0, (fit.bottom / fit.photoWidth * 1000.0), 1.0)
     }
+
+    @Test
+    fun landscapePlateUsesTheShorterEdge() {
+        val size = WatermarkMetrics.outputSize(4000, 3000, WatermarkStyle.PLATE_LIGHT, false)
+        assertEquals(4000, size.width)
+        assertEquals(3486, size.height)
+        val portrait = WatermarkMetrics.outputSize(3000, 4000, WatermarkStyle.PLATE_LIGHT, false)
+        assertEquals(size.height - 3000, portrait.height - 4000)
+        val mount = WatermarkMetrics.outputSize(4000, 3000, WatermarkStyle.MOUNT, false)
+        assertEquals(4276, mount.width)
+        assertEquals(3738, mount.height)
+        val fit = WatermarkMetrics.fitFrame(
+            availWidth = 1600f,
+            availHeight = 900f,
+            photoAspect = 4f / 3f,
+            style = WatermarkStyle.PLATE_LIGHT,
+            hasPlace = false,
+        )
+        assertTrue(fit.outerWidth <= 1600.5f)
+        assertTrue(fit.outerHeight <= 900.5f)
+        assertEquals(4.0 / 3.0, (fit.photoWidth / fit.photoHeight).toDouble(), 0.001)
+        val shortEdge = minOf(fit.photoWidth, fit.photoHeight)
+        assertEquals(162.0, (fit.bottom / shortEdge * 1000.0), 1.0)
+    }
 }
 
 class AltitudeFusionTest {
