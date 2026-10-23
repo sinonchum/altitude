@@ -64,7 +64,10 @@ enum PhotoImporter {
             let assets = PHAsset.fetchAssets(withLocalIdentifiers: [identifier], options: nil)
             if let asset = assets.firstObject {
                 // Limited library access still returns location for an asset the person just picked.
-                let data = await originalData(asset) ?? (try? await item.loadTransferable(type: Data.self))
+                var data = await originalData(asset)
+                if data == nil {
+                    data = try? await item.loadTransferable(type: Data.self)
+                }
                 return (data, asset.location?.coordinate.latitude, asset.location?.coordinate.longitude, true)
             }
         }
