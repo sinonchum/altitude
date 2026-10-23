@@ -5,7 +5,7 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
-val altitudeVersionName = "1.3.0"
+val altitudeVersionName = "1.3.1"
 
 android {
     namespace = "app.altitude"
@@ -15,11 +15,30 @@ android {
         applicationId = "app.altitude"
         minSdk = 26
         targetSdk = 36
-        versionCode = 7
+        versionCode = 8
         versionName = altitudeVersionName
     }
 
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+            // Same certificate as the 1.2.2 and 1.3.0 debug APKs. v1 is enabled for
+            // package installers that still read the JAR signature. v2 stays on.
+            // v3 stays off: some MIUI/HyperOS builds report packageInfo is null for it.
+            enableV1Signing = true
+            enableV2Signing = true
+            enableV3Signing = false
+            enableV4Signing = false
+        }
+    }
+
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("debug")
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(

@@ -292,6 +292,8 @@ class AltitudeViewModel(application: Application) : AndroidViewModel(application
 
     fun setFrontCamera(front: Boolean) = preferences.setFrontCamera(front)
 
+    fun setScreenFlash(enabled: Boolean) = preferences.setScreenFlash(enabled)
+
     fun completeOnboarding() = preferences.setOnboardingComplete()
 
     fun setSettingsOpen(open: Boolean) {

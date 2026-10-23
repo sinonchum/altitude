@@ -100,6 +100,7 @@ data class PrefsSnapshot(
     val captionAnchor: CaptionAnchor,
     val onboardingComplete: Boolean,
     val frontCamera: Boolean,
+    val screenFlash: Boolean,
 )
 
 data class LastKnown(

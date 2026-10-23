@@ -101,6 +101,37 @@ object FocusMeteringChoice {
     }
 }
 
+/**
+ * Per-camera autofocus. Picture AF is a positive minimum focus distance together
+ * with AUTO or CONTINUOUS_PICTURE in the available AF modes. A definite negative
+ * from those characteristics stays negative. An AF-flagged metering query is used
+ * only when a characteristic is missing.
+ */
+object Autofocus {
+    const val MODE_AUTO = 1
+    const val MODE_CONTINUOUS_PICTURE = 4
+
+    fun supported(
+        afModes: IntArray?,
+        minimumFocusDistance: Float?,
+        meteringSupportsAf: Boolean,
+    ): Boolean {
+        val pictureAf = afModes?.any { it == MODE_AUTO || it == MODE_CONTINUOUS_PICTURE } == true
+        val travels = minimumFocusDistance != null &&
+            minimumFocusDistance.isFinite() &&
+            minimumFocusDistance > 0f
+        if (afModes != null && minimumFocusDistance != null) return pictureAf && travels
+        if (afModes != null && !pictureAf) return false
+        if (minimumFocusDistance != null && !travels) return false
+        return meteringSupportsAf
+    }
+
+    fun tapFlags(autofocus: Boolean, supports: (Int) -> Boolean): Int? {
+        if (autofocus) return FocusMeteringChoice.select(supports)
+        return if (supports(FocusMeteringChoice.AE)) FocusMeteringChoice.AE else null
+    }
+}
+
 object CaptureFraming {
     fun uprightSize(width: Int, height: Int, rotationDegrees: Int): PixelSize {
         val quarter = ((rotationDegrees % 360) + 360) % 360

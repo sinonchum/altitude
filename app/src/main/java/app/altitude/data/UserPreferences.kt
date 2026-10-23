@@ -49,6 +49,8 @@ class UserPreferences(context: Context) {
 
     fun setFrontCamera(front: Boolean) = edit { putString(KEY_LENS, if (front) CameraLens.FRONT.name else CameraLens.BACK.name) }
 
+    fun setScreenFlash(enabled: Boolean) = edit { putBoolean(KEY_SCREEN_FLASH, enabled) }
+
     fun setOnboardingComplete() = edit { putBoolean(KEY_ONBOARDING, true) }
 
     fun readLastKnown(): LastKnown? {
@@ -85,6 +87,7 @@ class UserPreferences(context: Context) {
         captionAnchor = enumOr(KEY_ANCHOR, CaptionAnchor.BOTTOM),
         onboardingComplete = getBoolean(KEY_ONBOARDING, false),
         frontCamera = getString(KEY_LENS, null) == CameraLens.FRONT.name,
+        screenFlash = getBoolean(KEY_SCREEN_FLASH, false),
     )
 
     private fun SharedPreferences.takeDouble(key: String): Double? {
@@ -111,6 +114,7 @@ class UserPreferences(context: Context) {
         const val KEY_ANCHOR = "caption_anchor"
         const val KEY_ONBOARDING = "onboarding_complete"
         const val KEY_LENS = "camera_lens"
+        const val KEY_SCREEN_FLASH = "screen_flash"
         const val KEY_LAST_ALT = "last_alt_bits"
         const val KEY_LAST_TIME = "last_alt_time"
         const val KEY_LAST_LAT = "last_lat_bits"

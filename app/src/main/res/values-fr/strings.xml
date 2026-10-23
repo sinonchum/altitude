@@ -79,6 +79,8 @@
     <string name="cd_shutter">Déclencheur</string>
     <string name="cd_switch_to_front">Passer à l’appareil photo avant</string>
     <string name="cd_switch_to_back">Passer à l’appareil photo arrière</string>
+    <string name="cd_screen_flash_off">Activer le flash d’écran</string>
+    <string name="cd_screen_flash_on">Désactiver le flash d’écran</string>
 
     <string name="settings_title">Réglages</string>
     <string name="settings_section_units">Unités</string>
