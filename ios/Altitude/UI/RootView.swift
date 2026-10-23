@@ -1,3 +1,4 @@
+import PhotosUI
 import SwiftUI
 
 struct RootView: View {
@@ -7,6 +8,8 @@ struct RootView: View {
         ZStack {
             if !model.prefs.onboardingComplete && model.preview == nil {
                 OnboardingView(model: model)
+            } else if model.importOpen {
+                ImportPreviewView(model: model)
             } else if model.settingsOpen {
                 SettingsSheet(model: model)
                     .safeAreaPadding(.top, 8)
@@ -33,9 +36,23 @@ struct RootView: View {
         }
         .animation(model.preview == nil ? .easeInOut(duration: 0.28) : nil, value: model.mode)
         .animation(model.preview == nil ? .easeInOut(duration: 0.28) : nil, value: model.settingsOpen)
+        .animation(model.preview == nil ? .easeInOut(duration: 0.28) : nil, value: model.importOpen)
         .preferredColorScheme(model.mode == .display && model.prefs.theme.lightBars ? .light : .dark)
         .fullScreenCover(isPresented: $model.galleryOpen) {
             GalleryView(model: model)
+        }
+        .photosPicker(
+            isPresented: $model.importPickerPresented,
+            selection: $model.importSelection,
+            maxSelectionCount: importSelectionLimit,
+            matching: .images,
+            photoLibrary: .shared()
+        )
+        .onChange(of: model.importSelection.map(\.itemIdentifier)) { _, _ in
+            guard !model.importSelection.isEmpty else { return }
+            let items = model.importSelection
+            model.importSelection = []
+            Task { await model.loadImport(items) }
         }
         .task { model.start() }
         .onChange(of: scenePhase) { _, phase in

@@ -30,6 +30,14 @@ struct GalleryView: View {
                         Image(systemName: AppSymbols.close).frame(width: 44, height: 44)
                     }
                     .accessibilityLabel(copy.text("cd_close_gallery"))
+                    Button {
+                        Task { await model.beginImport() }
+                    } label: {
+                        Image(systemName: AppSymbols.importPhoto).frame(width: 44, height: 44)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(copy.text("cd_import_photo"))
+                    .accessibilityIdentifier("import.photo")
                     Spacer()
                     if !model.photos.isEmpty {
                         Text(copy.format("gallery_page", index + 1, model.photos.count))

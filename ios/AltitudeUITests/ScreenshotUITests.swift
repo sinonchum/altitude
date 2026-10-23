@@ -60,14 +60,14 @@ final class ScreenshotUITests: XCTestCase {
         let app = launch(preview: "settings", language: language)
         XCUIDevice.shared.orientation = .portrait
         let version = element(app, "settings.version")
-        let versionText = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "1.0.0")).firstMatch
+        let versionText = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "1.1.0")).firstMatch
         let appeared = version.waitForExistence(timeout: 20) || versionText.waitForExistence(timeout: 5)
         if !appeared {
             XCTFail("settings version missing\n\(String(app.debugDescription.prefix(3500)))")
             return
         }
         let shown = version.exists ? version.label : versionText.label
-        XCTAssertTrue(shown.contains("1.0.0"), shown)
+        XCTAssertTrue(shown.contains("1.1.0"), shown)
         XCTAssertTrue(elementLabeled(app, "English").waitForExistence(timeout: 8), String(app.debugDescription.prefix(2500)))
         XCTAssertTrue(elementLabeled(app, "中文").exists)
         XCTAssertTrue(elementLabeled(app, "Français").exists)
@@ -102,14 +102,115 @@ final class ScreenshotUITests: XCTestCase {
         save(file)
     }
 
-    private func launch(preview: String, language: String, lens: String = "back", flash: Bool = false) -> XCUIApplication {
+    func testImportEntryPortrait() throws {
+        XCUIDevice.shared.orientation = .portrait
+        let app = launch(preview: "camera", language: "en")
+        XCUIDevice.shared.orientation = .portrait
+        XCTAssertTrue(element(app, "import.photo").waitForExistence(timeout: 20))
+        XCTAssertTrue(element(app, "camera.preview").exists)
+        save("import-entry")
+    }
+
+    func testImportEntryLandscape() throws {
+        let app = launch(preview: "camera", language: "en")
+        XCUIDevice.shared.orientation = .landscapeLeft
+        let button = element(app, "import.photo")
+        XCTAssertTrue(button.waitForExistence(timeout: 20))
+        let window = app.windows.firstMatch
+        let laidOut = expectation(for: NSPredicate { _, _ in
+            guard button.exists, window.exists else { return false }
+            return window.frame.width > window.frame.height && button.frame.width > 20
+        }, evaluatedWith: nil, handler: nil)
+        wait(for: [laidOut], timeout: 12)
+        save("import-entry-landscape")
+    }
+
+    func testImportPortraitPhotoPortrait() throws {
+        try assertImport(fixture: "portrait", language: "en", landscape: false, file: "import-portrait-photo")
+    }
+
+    func testImportPortraitPhotoLandscape() throws {
+        try assertImport(fixture: "portrait", language: "en", landscape: true, file: "import-portrait-photo-landscape")
+    }
+
+    func testImportLandscapePhotoPortrait() throws {
+        try assertImport(fixture: "landscape", language: "en", landscape: false, file: "import-landscape-photo")
+    }
+
+    func testImportLandscapePhotoLandscape() throws {
+        try assertImport(fixture: "landscape", language: "en", landscape: true, file: "import-landscape-photo-landscape")
+    }
+
+    func testImportNoGpsPortrait() throws {
+        try assertImport(fixture: "nogps", language: "en", landscape: false, file: "import-nogps", notice: "No location in this photo")
+    }
+
+    func testImportNoGpsLandscape() throws {
+        try assertImport(fixture: "nogps", language: "en", landscape: true, file: "import-nogps-landscape", notice: "No location in this photo")
+    }
+
+    func testImportComputedPortrait() throws {
+        try assertImport(fixture: "computed", language: "en", landscape: false, file: "import-computed", notice: "Computed from coordinates")
+    }
+
+    func testImportComputedLandscape() throws {
+        try assertImport(fixture: "computed", language: "en", landscape: true, file: "import-computed-landscape", notice: "Computed from coordinates")
+    }
+
+    func testImportNoGpsChinese() throws {
+        try assertImport(fixture: "nogps", language: "zh", landscape: false, file: "import-nogps-zh", notice: "这张照片没有位置")
+    }
+
+    func testImportNoGpsFrench() throws {
+        try assertImport(fixture: "nogps", language: "fr", landscape: false, file: "import-nogps-fr", notice: "Cette photo n’a pas de lieu")
+    }
+
+    func testImportNoGpsFrenchLandscape() throws {
+        try assertImport(fixture: "nogps", language: "fr", landscape: true, file: "import-nogps-fr-landscape", notice: "Cette photo n’a pas de lieu")
+    }
+
+    private func assertImport(fixture: String, language: String, landscape: Bool, file: String, notice: String? = nil) throws {
+        let app = launch(preview: "import", language: language, fixture: fixture)
+        if landscape {
+            XCUIDevice.shared.orientation = .landscapeLeft
+        } else {
+            XCUIDevice.shared.orientation = .portrait
+        }
+        let preview = element(app, "import.preview")
+        let window = app.windows.firstMatch
+        XCTAssertTrue(preview.waitForExistence(timeout: 20), String(app.debugDescription.prefix(2000)))
+        let laidOut = expectation(for: NSPredicate { _, _ in
+            guard preview.exists, window.exists else { return false }
+            let windowFrame = window.frame
+            let previewFrame = preview.frame
+            let oriented = landscape ? windowFrame.width > windowFrame.height : windowFrame.height >= windowFrame.width
+            return oriented && previewFrame.width > 40 && previewFrame.height > 40
+        }, evaluatedWith: nil, handler: nil)
+        wait(for: [laidOut], timeout: 12)
+        XCTAssertTrue(preview.frame.width > 40 && preview.frame.height > 40)
+        if let notice {
+            let label = elementLabeled(app, notice)
+            XCTAssertTrue(label.waitForExistence(timeout: 8), String(app.debugDescription.prefix(2000)))
+            XCTAssertTrue(window.frame.insetBy(dx: -2, dy: -2).contains(label.frame), "notice \(label.frame) window \(window.frame)")
+        }
+        let anchor = elementLabeled(app, language == "zh" ? "顶部" : (language == "fr" ? "Haut" : "Top"))
+        XCTAssertTrue(anchor.waitForExistence(timeout: 5))
+        XCTAssertTrue(window.frame.insetBy(dx: -2, dy: -2).contains(anchor.frame), "anchor \(anchor.frame) window \(window.frame)")
+        save(file)
+    }
+
+    private func launch(preview: String, language: String, lens: String = "back", flash: Bool = false, fixture: String = "portrait") -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = [
+        var arguments = [
             "-uiPreview", preview,
             "-uiLang", language,
             "-uiLens", lens,
             "-uiFlash", flash ? "1" : "0",
         ]
+        if preview == "import" {
+            arguments += ["-uiImport", fixture]
+        }
+        app.launchArguments = arguments
         app.launch()
         return app
     }

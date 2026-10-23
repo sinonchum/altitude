@@ -32,31 +32,43 @@ enum WatermarkRenderer {
                 upright.draw(at: .zero)
                 drawCaption(canvas, width: CGFloat(size.width), height: CGFloat(size.height), content: content, anchor: anchor)
             case .plateLight, .plateDark:
-                upright.draw(at: .zero)
-                let plate = CGRect(x: 0, y: upright.size.height, width: upright.size.width, height: CGFloat(size.height) - upright.size.height)
-                drawPlate(canvas, rect: plate, content: content, dark: style == .plateDark, metric: metric)
+                let plateHeight = CGFloat(size.height) - upright.size.height
+                let onTop = anchor == .top
+                upright.draw(at: CGPoint(x: 0, y: onTop ? plateHeight : 0))
+                let plate = CGRect(
+                    x: 0,
+                    y: onTop ? 0 : upright.size.height,
+                    width: upright.size.width,
+                    height: plateHeight
+                )
+                drawPlate(canvas, rect: plate, content: content, dark: style == .plateDark, metric: metric, hairlineAtBottom: onTop)
             case .mount:
                 canvas.setFillColor(WatermarkColors.lightBackground.cgColor)
                 canvas.fill(CGRect(x: 0, y: 0, width: size.width, height: size.height))
                 let reference = min(Int(upright.size.width), Int(upright.size.height))
                 let side = CGFloat(WatermarkMetrics.scaledPx(reference, WatermarkMetrics.mountSideThousandths))
-                let top = CGFloat(WatermarkMetrics.scaledPx(reference, WatermarkMetrics.mountTopThousandths))
-                upright.draw(at: CGPoint(x: side, y: top))
-                let bottom = CGRect(
-                    x: side,
-                    y: top + upright.size.height,
-                    width: CGFloat(size.width) - side * 2,
-                    height: CGFloat(size.height) - (top + upright.size.height)
-                )
-                drawBottomBand(canvas, rect: bottom, metric: metric, content: content, dark: false)
+                let slim = CGFloat(WatermarkMetrics.scaledPx(reference, WatermarkMetrics.mountTopThousandths))
+                let band = CGFloat(WatermarkMetrics.scaledPx(reference, WatermarkMetrics.mountBottomThousandths))
+                let onTop = anchor == .top
+                let photoTop = onTop ? band : slim
+                upright.draw(at: CGPoint(x: side, y: photoTop))
+                let textBand = onTop
+                    ? CGRect(x: side, y: 0, width: CGFloat(size.width) - side * 2, height: band)
+                    : CGRect(
+                        x: side,
+                        y: photoTop + upright.size.height,
+                        width: CGFloat(size.width) - side * 2,
+                        height: CGFloat(size.height) - (photoTop + upright.size.height)
+                    )
+                drawBottomBand(canvas, rect: textBand, metric: metric, content: content, dark: false, hairlineAtBottom: onTop)
             }
         }
     }
 
-    static func drawPlate(_ canvas: CGContext, rect: CGRect, content: WatermarkContent, dark: Bool, metric: CGFloat) {
+    static func drawPlate(_ canvas: CGContext, rect: CGRect, content: WatermarkContent, dark: Bool, metric: CGFloat, hairlineAtBottom: Bool = false) {
         canvas.setFillColor((dark ? WatermarkColors.darkBackground : WatermarkColors.lightBackground).cgColor)
         canvas.fill(rect)
-        drawBottomBand(canvas, rect: rect, metric: metric, content: content, dark: dark)
+        drawBottomBand(canvas, rect: rect, metric: metric, content: content, dark: dark, hairlineAtBottom: hairlineAtBottom)
     }
 
     static func drawCaption(_ canvas: CGContext, width: CGFloat, height: CGFloat, content: WatermarkContent, anchor: CaptionAnchor) {
@@ -92,10 +104,11 @@ enum WatermarkRenderer {
         drawSignature(canvas, rect: rect, metric: metric, content: content, dark: true)
     }
 
-    static func drawBottomBand(_ canvas: CGContext, rect: CGRect, metric: CGFloat, content: WatermarkContent, dark: Bool) {
+    static func drawBottomBand(_ canvas: CGContext, rect: CGRect, metric: CGFloat, content: WatermarkContent, dark: Bool, hairlineAtBottom: Bool = false) {
         let hairline = max(1, metric * 0.0013)
         canvas.setFillColor((dark ? UIColor(white: 1, alpha: 0.14) : UIColor(white: 0, alpha: 0.09)).cgColor)
-        canvas.fill(CGRect(x: rect.minX, y: rect.minY, width: rect.width, height: hairline))
+        let hairlineTop = hairlineAtBottom ? rect.maxY - hairline : rect.minY
+        canvas.fill(CGRect(x: rect.minX, y: hairlineTop, width: rect.width, height: hairline))
         let inset = metric * 0.048
         let text = rect.insetBy(dx: inset, dy: 0)
         drawSignature(canvas, rect: text, metric: metric, content: content, dark: dark)
@@ -117,15 +130,19 @@ enum WatermarkRenderer {
         let wordmarkWidth = measure(content.wordmark, font: wordmarkFont, kern: wordmarkKern).width
         let wordmarkHeight = wordmarkFont.lineHeight
 
+        let altitudeShown = content.altitude.trimmingCharacters(in: .whitespacesAndNewlines)
+        let showAltitude = !altitudeShown.isEmpty
         var altSize = altitudeSize
         var altFont = Outfit.uiSemibold(altSize)
         var altKern = -altSize * 0.03
-        while measure(content.altitude, font: altFont, kern: altKern).width > rightWidth && altSize > metric * 0.032 {
-            altSize *= 0.94
-            altFont = Outfit.uiSemibold(altSize)
-            altKern = -altSize * 0.03
+        if showAltitude {
+            while measure(altitudeShown, font: altFont, kern: altKern).width > rightWidth && altSize > metric * 0.032 {
+                altSize *= 0.94
+                altFont = Outfit.uiSemibold(altSize)
+                altKern = -altSize * 0.03
+            }
         }
-        let altitudeHeight = altFont.lineHeight
+        let altitudeHeight = showAltitude ? altFont.lineHeight : 0
 
         let coordinate = content.coordinates?.trimmingCharacters(in: .whitespacesAndNewlines)
         let coordinateShown = (coordinate?.isEmpty == false) ? coordinate : nil
@@ -175,7 +192,7 @@ enum WatermarkRenderer {
         let leftHeight = wordmarkHeight
             + (coordinateShown != nil ? gap + coordinateHeight : 0)
             + (content.place != nil ? gap + placeHeight : 0)
-        let rightHeight = altitudeHeight + (content.time != nil ? gap + timeHeight : 0)
+        let rightHeight = (showAltitude ? altitudeHeight : 0) + (content.time != nil ? (showAltitude ? gap : 0) + timeHeight : 0)
         let block = max(leftHeight, rightHeight)
         let top = rect.minY + (rect.height - block) / 2
         let leftTop = top + (block - leftHeight) / 2
@@ -198,9 +215,11 @@ enum WatermarkRenderer {
             drawText(place, font: placeFont, kern: 0, color: secondary, x: rect.minX, y: cursor, alignRight: false, right: rect.maxX)
         }
 
-        drawText(content.altitude, font: altFont, kern: altKern, color: primary, x: rect.minX, y: rightTop, alignRight: true, right: rect.maxX)
+        if showAltitude {
+            drawText(altitudeShown, font: altFont, kern: altKern, color: primary, x: rect.minX, y: rightTop, alignRight: true, right: rect.maxX)
+        }
         if let time = content.time {
-            let timeTop = rightTop + altitudeHeight + gap
+            let timeTop = rightTop + (showAltitude ? altitudeHeight + gap : 0)
             drawText(time, font: timeFont, kern: timeKern, color: secondary, x: rect.minX, y: timeTop, alignRight: true, right: rect.maxX)
         }
     }
@@ -244,14 +263,28 @@ private extension String {
     }
 }
 
-private extension UIImage {
+extension UIImage {
     func normalizedUp() -> UIImage {
         if imageOrientation == .up { return self }
         let format = UIGraphicsImageRendererFormat()
-        format.scale = scale
+        format.scale = 1
         format.opaque = true
         return UIGraphicsImageRenderer(size: size, format: format).image { _ in
             draw(in: CGRect(origin: .zero, size: size))
+        }
+    }
+
+    func upright(maxEdge: CGFloat) -> UIImage {
+        let upright = normalizedUp()
+        let longest = max(upright.size.width, upright.size.height)
+        guard longest > maxEdge, longest > 0 else { return upright }
+        let scale = maxEdge / longest
+        let size = CGSize(width: (upright.size.width * scale).rounded(), height: (upright.size.height * scale).rounded())
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = true
+        return UIGraphicsImageRenderer(size: size, format: format).image { _ in
+            upright.draw(in: CGRect(origin: .zero, size: size))
         }
     }
 }

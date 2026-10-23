@@ -65,7 +65,7 @@ Acceptance:
 - [ ] Every translatable Android key exists in `en`, `zh-Hans`, and `fr`, with the same format specifiers.
 - [ ] `app_name`, `wordmark`, and the three language names are not translated. Wordmark is `ALTITUDE`.
 - [ ] Plural categories match Android: English one/other, Chinese other, French one/many/other.
-- [ ] Settings shows `1.0.0 (1)` from the bundle version, not a literal typed into the view body.
+- [ ] Settings shows the bundle version, not a literal typed into the view body. The first release showed `1.0.0 (1)`. The import release shows `1.1.0 (2)`.
 - [ ] No user-facing string is written as a literal in a SwiftUI view. Permission text is in the property-list catalog.
 
 ## Step 3 — Sensors, place names, photos
@@ -167,6 +167,37 @@ Acceptance:
 - [ ] Screenshot artifacts include portrait and landscape, back and front, the display, and Settings in three languages.
 - [ ] An unsigned `.app` or `.xcarchive` is uploaded. The workflow does not read a signing certificate or an App Store key.
 
+## Step 8 — Frame an existing photo
+
+Features: import one to twelve photos from the library and frame each from its own metadata. Coordinates and capture time come from EXIF/TIFF, with `DateTimeOriginal` shown as recorded and `OffsetTimeOriginal` attached, not shifted into the phone’s zone. Altitude comes from `GPSAltitude` and `GPSAltitudeRef`. If that tag is missing and the photo has coordinates, altitude is computed from Open-Meteo (Copernicus DEM), marked with `≈` and a computed note. Otherwise the altitude line is omitted. Place names reuse Nominatim. A photo with no GPS shows a notice and can still be framed. Nothing is invented. Placeholder dashes are not burned into the saved image. The preview offers the same watermark styles and a top/bottom position for every style. The saved file is a new image in the Altitude album, with GPS, time, and altitude metadata. The original is not modified.
+
+Implementation:
+
+- `PhotoImport` ports the Android EXIF clock, signed GPS altitude, altitude selection, notice kind, and Open-Meteo URL/parse/cache key. No UIKit in those functions.
+- `PhotoJPEG.capture` reads ImageIO EXIF and GPS dictionaries, including `OffsetTimeOriginal` and `GPSAltitudeRef`.
+- `PhotosPicker` uses `PHPhotoLibrary.shared()` so items carry asset identifiers. `PhotoImporter` requests original image data and, when the file has no GPS, uses `PHAsset.location`. A missing asset is treated as redacted. A readable asset with no GPS is treated as absent.
+- `ElevationDirectory` batches the points that still need a height, with the same user agent and one-request-per-second spacing.
+- `ImportPreviewView` renders through `WatermarkRenderer`, which now honors a top plate and a top mount. Blank altitude text is not drawn.
+- Strings live in the catalog in English, Simplified Chinese, and French. Permission sentences tell the person to use Settings → Altitude → Photos → Full Access.
+- Version is `1.1.0` build `2`.
+
+Depends on: steps 1–3 (formatting, strings, watermark drawing, album save, Nominatim). The Android reference is `cursor/import-photo-frame-c835`. The Android tree is not modified.
+
+Parallel with: nothing inside this step. The domain tests do not wait on the preview screenshots.
+
+Test: `PhotoImportTests` ports `PhotoExifTest` and `PhotoAltitudeTest`, including Open-Meteo parsing, and adds the asset-identifier merge plus a JPEG round trip of GPS, below-sea-level altitude, `DateTimeOriginal`, and `OffsetTimeOriginal`. UI tests shoot the import entry and the preview for a portrait photo, a landscape photo, no GPS, and computed altitude, in both device orientations, plus the no-GPS notice in Chinese and French.
+
+Acceptance:
+
+- [ ] EXIF wall clock stays `2024-06-15 14:30` with offset `+08:00`. GPS-only time shifts into the recorded offset. Blank dates and unsigned offsets are rejected.
+- [ ] `GPSAltitudeRef` 1 is negative. Zero and negative EXIF altitudes win over a lookup. A lookup runs only when coordinates exist and EXIF altitude is missing. No coordinates means no invented number.
+- [ ] Open-Meteo URL and cache key match Android (`29.65218` / `91.11700`, cache `29.6522,91.1170`). A null elevation entry stays nil.
+- [ ] A full-quality JPEG keeps GPS. A stripped file plus a readable asset location uses that location. Neither source, with no readable asset, is the hidden-location notice.
+- [ ] Computed altitude is drawn with `≈`. Missing altitude and missing coordinates are omitted from the saved image, including the dash placeholder.
+- [ ] Plate and mount can sit on top. The import preview shows styles and the top/bottom control. Portrait and landscape photos are upright.
+- [ ] Import screenshots exist for the entry, portrait photo, landscape photo, no GPS, and computed altitude, in both device orientations, with the notice inside the window in English, Chinese, and French.
+- [ ] Settings shows `1.1.0 (2)`. New strings exist in `en`, `zh-Hans`, and `fr` with matching format specifiers.
+
 ## Parallelism
 
 | Can run together | Must wait |
@@ -174,6 +205,7 @@ Acceptance:
 | Step 1 math, step 2 strings, static layout in steps 4 and 5 | Watermark pixels wait on step 1 fractions |
 | Preview screenshots and the live camera session | UI tests wait on steps 4 and 5 |
 | Gallery chrome and sensor fusion | Step 7 waits on the rest |
+| Step 8 domain tests and the import preview layout | Step 8 screenshots wait on the preview and the catalog strings |
 
 ## Checklist
 
@@ -190,5 +222,14 @@ Status values: `pass` only after a green macOS workflow. Evidence: [run 39942210
 | A6 | Landscape UI test checks the preview fraction | pass |
 | A7 | Unsigned build artifact is uploaded | pass |
 | A8 | Workflow run is green | pass |
+| B0 | PRD and this plan describe import-from-metadata, including picker, ImageIO, and PHAsset location | pending |
+| B1 | EXIF clock, signed altitude, and value-selection tests pass | pending |
+| B2 | Open-Meteo parse, URL, and cache-key tests pass | pending |
+| B3 | Asset-identifier location merge and JPEG metadata round trip pass | pending |
+| B4 | Blank altitude is omitted and top plate/mount layout is covered by a unit test | pending |
+| B5 | Import entry and preview screenshots exist in both device orientations | pending |
+| B6 | No-GPS notice is inside the window in English, Chinese, and French | pending |
+| B7 | Settings shows 1.1.0 (2) and the new strings pass the catalog parity test | pending |
+| B8 | Workflow run for this milestone is green | pending |
 
-Version shown in Settings: **1.0.0 (1)**.
+Version shown in Settings: **1.1.0 (2)**. Rows B0–B8 stay pending until a green macOS run covers them. Rows A0–A8 stay pass from [run 39942210594](https://github.com/sinonchum/altitude/actions/runs/39942210594).
