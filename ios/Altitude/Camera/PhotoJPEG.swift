@@ -9,6 +9,9 @@ enum PhotoJPEG {
         var altitudeMeters: Double?
         var epochMs: Int64
         var software: String = "Altitude"
+        /// Recorded wall clock (`yyyy:MM:dd HH:mm:ss`). When set, it is written as-is and is not shifted into the phone's zone.
+        var dateTimeOriginal: String? = nil
+        var offsetTimeOriginal: String? = nil
     }
 
     struct ReadTags {
@@ -39,15 +42,19 @@ enum PhotoJPEG {
         if let existing = dictionary(properties[kCGImagePropertyTIFFDictionary]) {
             tiff.addEntries(from: existing)
         }
+        let recorded = tags.dateTimeOriginal ?? formatExifDateTime(tags.epochMs)
         tiff[kCGImagePropertyTIFFSoftware] = tags.software
-        tiff[kCGImagePropertyTIFFDateTime] = formatExifDateTime(tags.epochMs)
+        tiff[kCGImagePropertyTIFFDateTime] = recorded
         properties[kCGImagePropertyTIFFDictionary] = tiff
 
         let exif = NSMutableDictionary()
         if let existing = dictionary(properties[kCGImagePropertyExifDictionary]) {
             exif.addEntries(from: existing)
         }
-        exif[kCGImagePropertyExifDateTimeOriginal] = formatExifDateTime(tags.epochMs)
+        exif[kCGImagePropertyExifDateTimeOriginal] = recorded
+        if let offset = tags.offsetTimeOriginal {
+            exif[kCGImagePropertyExifOffsetTimeOriginal] = offset
+        }
         properties[kCGImagePropertyExifDictionary] = exif
 
         if let gps = gpsDictionary(tags) {
@@ -79,6 +86,39 @@ enum PhotoJPEG {
             altitude = nil
         }
         return ReadTags(latitude: latitude, longitude: longitude, altitude: altitude, software: software, dump: describe(raw))
+    }
+
+    /// Reads the photo's own GPS, altitude reference, orientation, and recorded clock. Nothing is shifted into the phone's zone.
+    static func capture(from data: Data) -> PhotoCapture {
+        let empty = PhotoCapture(latitude: nil, longitude: nil, exifAltitudeMeters: nil, clock: nil, orientation: .normal)
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+              let raw = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) else { return empty }
+        let properties = dictionary(raw) ?? [:]
+        let tiff = dictionary(properties[kCGImagePropertyTIFFDictionary as String]) ?? [:]
+        let exif = dictionary(properties[kCGImagePropertyExifDictionary as String]) ?? [:]
+        let gps = dictionary(properties[kCGImagePropertyGPSDictionary as String]) ?? [:]
+        let latitude = signed(gps[kCGImagePropertyGPSLatitude as String], reference: gps[kCGImagePropertyGPSLatitudeRef as String] as? String, positive: "N")
+        let longitude = signed(gps[kCGImagePropertyGPSLongitude as String], reference: gps[kCGImagePropertyGPSLongitudeRef as String] as? String, positive: "E")
+        let magnitude = doubleValue(gps[kCGImagePropertyGPSAltitude as String])
+        let altitude = signedGpsAltitudeMeters(magnitude, integerValue(gps[kCGImagePropertyGPSAltitudeRef as String]))
+        let orientation = integerValue(properties[kCGImagePropertyOrientation as String]) ?? 1
+        let clock = resolveCapturedClock(
+            dateTimeOriginal: exif[kCGImagePropertyExifDateTimeOriginal as String] as? String,
+            dateTimeDigitized: exif[kCGImagePropertyExifDateTimeDigitized as String] as? String,
+            dateTime: tiff[kCGImagePropertyTIFFDateTime as String] as? String,
+            offsetTimeOriginal: exif[kCGImagePropertyExifOffsetTimeOriginal as String] as? String,
+            offsetTimeDigitized: exif[kCGImagePropertyExifOffsetTimeDigitized as String] as? String,
+            offsetTime: exif[kCGImagePropertyExifOffsetTime as String] as? String,
+            gpsDateStamp: gps[kCGImagePropertyGPSDateStamp as String] as? String,
+            gpsTimeStamp: gpsTimeText(gps[kCGImagePropertyGPSTimeStamp as String])
+        )
+        return PhotoCapture(
+            latitude: latitude,
+            longitude: longitude,
+            exifAltitudeMeters: altitude,
+            clock: clock,
+            orientation: ExifOrientation.fromTag(orientation)
+        )
     }
 
     private static func gpsDictionary(_ tags: Tags) -> NSMutableDictionary? {
@@ -146,6 +186,19 @@ enum PhotoJPEG {
     private static func doubleValue(_ value: Any?) -> Double? {
         if let number = value as? NSNumber { return number.doubleValue }
         if let number = value as? Double { return number }
+        if let text = value as? String { return rationalToDouble(text) }
+        return nil
+    }
+
+    private static func integerValue(_ value: Any?) -> Int? {
+        if let number = value as? NSNumber { return number.intValue }
+        if let number = value as? Int { return number }
+        return nil
+    }
+
+    private static func gpsTimeText(_ value: Any?) -> String? {
+        if let text = value as? String { return text }
+        if let text = value as? NSString { return text as String }
         return nil
     }
 }

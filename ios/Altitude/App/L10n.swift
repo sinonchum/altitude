@@ -170,6 +170,48 @@ struct Copy {
         )
     }
 
+    /// Every value comes from the photo. A missing altitude or coordinate is left empty, never a placeholder dash.
+    func importWatermark(
+        capture: PhotoCapture,
+        altitude: SelectedAltitude?,
+        place: String?,
+        showPlace: Bool,
+        unit: AltitudeUnit
+    ) -> WatermarkContent {
+        let reading = altitude?.meters.map { altitudeReading($0, unit) }
+        let altitudeText: String
+        switch altitude?.provenance {
+        case .fromPhoto:
+            altitudeText = reading ?? ""
+        case .computed:
+            altitudeText = reading.map { format("format_altitude_computed", $0) } ?? ""
+        default:
+            altitudeText = ""
+        }
+        let coordinates: String?
+        if let latitude = capture.latitude, let longitude = capture.longitude {
+            coordinates = coordinatePair(latitude: latitude, longitude: longitude)
+        } else {
+            coordinates = nil
+        }
+        let trimmed = place?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let stamp: String?
+        if let clock = capture.clock {
+            let date = formatWallClockPattern(clock.local, pattern: text("pattern_watermark_date"), locale: language.formatLocale)
+            let time = formatWallClockPattern(clock.local, pattern: text("pattern_watermark_time"), locale: language.formatLocale)
+            stamp = format("format_watermark_stamp", date, time)
+        } else {
+            stamp = nil
+        }
+        return WatermarkContent(
+            altitude: altitudeText,
+            coordinates: coordinates,
+            place: (showPlace && trimmed?.isEmpty == false) ? trimmed : nil,
+            time: stamp,
+            wordmark: text("wordmark")
+        )
+    }
+
     func sourceLabel(_ source: AltitudeSource) -> String {
         switch source {
         case .gps: return text("source_gps")

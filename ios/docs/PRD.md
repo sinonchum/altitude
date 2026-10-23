@@ -2,7 +2,7 @@
 
 Product name stays **Altitude**. The wordmark on the display and the watermark is the Latin word `ALTITUDE`. It is not translated. The red dot is this app’s own mark. The app does not imitate a camera brand, and it does not invent focal length or aperture.
 
-This document describes the iOS app that matches the Android app at version **1.3.2** (versionCode 9) on branch `cursor/trilingual-ui-f585`. The iOS app lives in `ios/` and does not change the Android project. The first iOS release is **1.0.0 (1)**.
+This document describes the iOS app that matches the Android app at version **1.3.2** (versionCode 9) on branch `cursor/trilingual-ui-f585`, plus the import-and-frame behavior from Android branch `cursor/import-photo-frame-c835`. The iOS app lives in `ios/` and does not change the Android project. The first iOS release was **1.0.0 (1)**. Import framing first shipped as **1.1.0 (2)**. This build is **1.1.1 (3)**.
 
 Feature parity is the goal. Platform differences are called out in the mapping column, not papered over with special-case tables.
 
@@ -21,6 +21,7 @@ Do:
 
 - Full-screen, high-contrast altitude in portrait and landscape. The screen stays awake. Maximum brightness is optional. Meters and feet. Digits roll. Coordinates, accuracy, time, and place name are optional on the display.
 - A camera whose viewfinder and saved photo share one watermark. The saved photo is redrawn at capture resolution. It is saved into an album named Altitude. Latitude, longitude, and mean-sea-level altitude are written into the photo metadata (EXIF GPS).
+- Framing an existing photo from the library. Coordinates, capture time, and altitude come from that photo. The original file is not modified. The framed result is a new image in the Altitude album.
 - Mean sea level, not ellipsoid height. Use the platform’s sea-level altitude when Core Location provides one. Otherwise subtract the bundled EGM96 15′ geoid. When a barometer is present, it tracks short-term motion and GPS slowly calibrates it.
 - Location, camera, photo library, and motion permission flows. After a denial, the screen explains the gap and offers another request or a jump to Settings.
 - In-app gallery of the photos this app saved.
@@ -208,9 +209,10 @@ Standard exonyms are Nominatim’s, per `accept-language`. The app does not rena
 
 | Need | When | If denied |
 | --- | --- | --- |
-| Location when in use, precise | Onboarding step 2, and again from the display prompt | Display explains it. Button asks again, or opens Settings once the system will not ask. |
-| Camera | Onboarding step 3, skippable, and from the camera gate | Display still works. Camera shows a closed-camera explanation. |
-| Photo library add and read | First save, and when the gallery opens | Save error string. Gallery can be empty. |
+| Location when in use, precise | The Allow button on onboarding step 2, and the button on the display prompt. Not at launch, and not when Settings opens. | The explanation is already on screen. The button asks, or opens Settings once the system will not ask. |
+| Camera | The Allow button on onboarding step 3 (skippable), and the button on the camera gate. Opening the camera shows the explanation first. | Display still works. A denial opens Settings. |
+| Photo library add | The first save, as `PHAccessLevel.addOnly`. Not at launch, and not when the camera or Settings opens. | The save error string. Add-only access does not read the library. |
+| Photo library read | The Allow button on the gallery explanation, or the Allow button on the import explanation. | The gallery shows that explanation instead of an empty album. Import stays on the explanation until access is granted. Limited access still exposes `PHAsset.location` for the assets the person picked. If a location had to be dropped, the preview says so in Chinese, English, and French. A denial opens Settings → Altitude → Photos. |
 | Motion | Barometer, requested with the altimeter start | GPS-only reading. No crash. |
 
 Onboarding can be finished with “Not now” and “Use the display only”. Completion is stored.
@@ -220,9 +222,10 @@ Onboarding can be finished with “Not now” and “Use the display only”. Co
 Android source: `GalleryScreen`, `AlbumIndex`, `AlbumQuery`.
 
 - Opens from the last-photo thumbnail.
-- Pages through the Altitude album, newest first.
+- Before read access, shows a short explanation. The system dialog waits for that button.
+- Pages through the Altitude album, newest first, once read access is granted.
 - Share, delete (with confirm), open in the system Photos app, close.
-- Empty state copy matches Android.
+- Empty state copy matches Android, and only appears when the album itself is empty.
 - `AlbumQuery` is ported for the unit tests. iOS does not query MediaStore. It fetches `PHAsset`s in the Altitude `PHAssetCollection`.
 
 ### 6.8 Settings and language
@@ -232,7 +235,7 @@ Android source: `GalleryScreen`, `AlbumIndex`, `AlbumQuery`.
 - Theme: Night, Black, Glacier, Saffron, Snow.
 - Toggles: maximum brightness, coordinates, accuracy, time, place name, follow system colors.
 - A note that the watermark always carries altitude, coordinates, and time.
-- Version line: `About / Version 1.0.0 (1)`, from `CFBundleShortVersionString` and `CFBundleVersion`. Bump both on every later release.
+- Version line: `About / Version 1.1.1 (3)`, from `CFBundleShortVersionString` and `CFBundleVersion`. The first release was `1.0.0 (1)`. Import framing first shipped as `1.1.0 (2)`. Bump both on every later release.
 
 Strings live in `Localizable.xcstrings`. Development language is English. Localizations: `en`, `zh-Hans`, `fr`. Copy is the Android `values`, `values-zh-rCN`, and `values-fr` catalogs. Format placeholders are converted from `%1$s` to `%1$@` only at the call site. The catalog keeps the Android specifiers so the parity test can compare them. Plural categories follow the Android catalogs (English one/other, Chinese other, French one/many/other).
 
@@ -258,9 +261,30 @@ Defaults: meters, Night, coordinates on, accuracy on, clock on, place on, white 
 | Font | Outfit (OFL), files under `ios/Altitude/Resources/Fonts` |
 | Pure logic | `ios/Altitude/Domain`, no UIKit |
 | Tests | XCTest unit tests in the app host, XCUITest screenshots with a mock viewfinder |
-| Version | 1.0.0 (1), iOS 17 and later, iPhone |
+| Version | 1.1.1 (3), iOS 17 and later, iPhone |
 
-The mock viewfinder exists so screenshots and UI tests do not depend on a simulator camera. Launch arguments `-uiPreview`, `-uiLang`, `-uiLens`, and `-uiFlash` drive it. They are not a user-facing mode.
+The mock viewfinder exists so screenshots and UI tests do not depend on a simulator camera. Launch arguments `-uiPreview`, `-uiLang`, `-uiLens`, `-uiFlash`, and `-uiImport` drive it. They are not a user-facing mode.
+
+## 9. Import an existing photo
+
+Android source: `PhotoExif`, `PhotoAltitude`, `ElevationLookup`, `PhotoImport`, `ImportPreviewScreen` on `cursor/import-photo-frame-c835`.
+
+The person picks one to twelve photos that already exist. Altitude frames each one with the same watermark styles and the same top or bottom position. Every number on the frame comes from that photo.
+
+| Value | Where it comes from | If it is missing |
+| --- | --- | --- |
+| Coordinates | EXIF/GPS latitude and longitude. If the file has none and the Photos asset was readable, `PHAsset.location`. | A notice. The frame can still be saved. No invented coordinates, and no “awaiting fix” line. |
+| Capture time | `DateTimeOriginal`, then digitized, then TIFF `DateTime`, then GPS UTC. `OffsetTimeOriginal` is kept. The wall clock is shown as recorded, not shifted into the phone’s zone. | The time line is omitted. |
+| Altitude | `GPSAltitude`, signed with `GPSAltitudeRef` (1 means below sea level). Zero and negative values count. | If the photo has coordinates, one Open-Meteo elevation lookup (Copernicus DEM). The frame shows `≈` and the preview says the altitude was computed. If that also fails, the altitude line is omitted. No placeholder dashes are burned into the saved image. |
+| Place name | The existing Nominatim pipeline, only when coordinates exist and place names are enabled. | The place line is omitted. |
+
+Limited photo access still exposes `PHAsset.location` for each asset the person picked. That location fills a file whose GPS was stripped, and the hidden-location notice stays off. A photo whose asset could not be read, and whose file also has no GPS, says the location was left out. A photo that was read and still has no GPS says the photo has no location. Neither case invents a coordinate.
+
+The picker is `PhotosPicker` on `PHPhotoLibrary.shared()`, at most 12 images, so each item has an asset identifier. The loader asks Photos for the original image data (`PHImageRequestOptions.version = .original`). EXIF inside that file wins. The asset location is only a fill-in for a file whose GPS was removed. Saving calls `PHAssetCreationRequest` and writes a new JPEG into the Altitude album. The original asset is never edited.
+
+Preview and the saved image use `WatermarkRenderer`. Plate and mount honor the top anchor: the band sits above the photo, and the hairline sits on the photo side of that band. EXIF orientation is baked into upright pixels before the frame is drawn. Portrait and landscape photos, and portrait and landscape devices, keep the notice, the style chips, and the position chips inside the safe area. Those chips wrap onto the next line when the row is narrower than their labels, including the landscape side column and the narrowest iPhone width (375pt). A label wider than the row wraps to two lines. Widths are not chosen per language.
+
+Open-Meteo requests use the same user agent and the same one-request-per-second gate as place names. Results are cached on a 0.01°-scale key (`%.4f`). A null or failed height is not stored and is not drawn.
 
 ## 8. What “done” means
 
@@ -268,4 +292,4 @@ See `DEV_PLAN.md` for the step-by-step acceptance list. The product is done when
 
 - Every Android unit-test behavior listed in section 9 of the Android PRD, plus the place-name, zoom, focus, orientation, and locale tests, passes as XCTest on an iPhone simulator.
 - UI tests capture portrait and landscape, back and front, the display, and Settings in Chinese, English, and French, from the mock camera.
-- GitHub Actions on `macos-latest` builds, tests, uploads those screenshots, and uploads an unsigned `.app` and, when the toolchain allows it, an unsigned `.xcarchive`. No Apple account secret is used.
+- GitHub Actions on `macos-latest` builds for testing, grants photos, location, and camera on the simulator, then runs the tests. A screenshot fails if a system alert is visible. The workflow uploads those screenshots, an unsigned `.app`, and, when the toolchain allows it, an unsigned `.xcarchive`. No Apple account secret is used.

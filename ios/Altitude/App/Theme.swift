@@ -93,5 +93,6 @@ enum AppSymbols {
     static let share = "square.and.arrow.up"
     static let trash = "trash"
     static let photos = "photo.on.rectangle"
+    static let importPhoto = "photo.badge.plus"
     static let close = "xmark"
 }
