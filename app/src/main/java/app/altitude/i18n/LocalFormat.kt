@@ -97,7 +97,7 @@ class LocalFormat(private val resources: Resources) {
             altitude.provenance == AltitudeProvenance.COMPUTED && reading != null -> {
                 resources.getString(R.string.format_altitude_computed, reading)
             }
-            else -> resources.getString(R.string.altitude_unavailable)
+            else -> ""
         }
         val coordinates = if (capture.hasCoordinates) {
             coordinatePair(capture.latitude!!, capture.longitude!!)

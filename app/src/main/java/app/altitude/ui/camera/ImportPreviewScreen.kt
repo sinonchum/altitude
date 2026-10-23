@@ -327,8 +327,7 @@ internal fun ImportPreviewScaffold(
                         Modifier
                             .width(sideWidth)
                             .fillMaxHeight()
-                            .verticalScroll(rememberScrollState())
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
                     ) {
                         ImportDetails(
                             notice = notice,
@@ -341,6 +340,7 @@ internal fun ImportPreviewScaffold(
                             multiple = multiple,
                             saving = saving,
                             status = status,
+                            stacked = true,
                             onStyle = onStyle,
                             onAnchor = onAnchor,
                             onAllowLocations = onAllowLocations,
@@ -375,6 +375,7 @@ internal fun ImportPreviewScaffold(
                         multiple = multiple,
                         saving = saving,
                         status = status,
+                        stacked = false,
                         onStyle = onStyle,
                         onAnchor = onAnchor,
                         onAllowLocations = onAllowLocations,
@@ -522,14 +523,49 @@ private fun ImportDetails(
     multiple: Boolean,
     saving: Boolean,
     status: String?,
+    stacked: Boolean,
     onStyle: (WatermarkStyle) -> Unit,
     onAnchor: (CaptionAnchor) -> Unit,
     onAllowLocations: () -> Unit,
     onSave: () -> Unit,
     onSaveAll: () -> Unit,
 ) {
+    if (stacked) {
+        Column(Modifier.fillMaxHeight()) {
+            Column(
+                Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState()),
+            ) {
+                ImportStatus(notice, showNotice, resolving, onAllowLocations, inset = false)
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                StyleChoices(style, onStyle, vertical = true)
+                AnchorChoices(anchor, onAnchor, vertical = true, pill = true)
+            }
+            Spacer(Modifier.height(12.dp))
+            ImportActions(canSave, canSaveAll, multiple, saving, status, onSave, onSaveAll)
+        }
+    } else {
+        ImportStatus(notice, showNotice, resolving, onAllowLocations, inset = true)
+        Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            StyleChoices(style, onStyle, vertical = false, wrap = true)
+            AnchorChoices(anchor, onAnchor, vertical = false, pill = true)
+            ImportActions(canSave, canSaveAll, multiple, saving, status, onSave, onSaveAll)
+        }
+    }
+}
+
+@Composable
+private fun ImportStatus(
+    notice: ImportNoticeKind,
+    showNotice: Boolean,
+    resolving: Boolean,
+    onAllowLocations: () -> Unit,
+    inset: Boolean,
+) {
     if (showNotice && notice != ImportNoticeKind.NONE) {
-        ImportNoticeCard(notice, onAllowLocations)
+        ImportNoticeCard(notice, onAllowLocations, inset)
         Spacer(Modifier.height(12.dp))
     } else if (resolving) {
         Text(
@@ -537,70 +573,77 @@ private fun ImportDetails(
             color = Muted,
             fontFamily = Outfit,
             fontSize = 13.sp,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+            modifier = Modifier.padding(horizontal = if (inset) 16.dp else 0.dp, vertical = 4.dp),
         )
     }
-    Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        StyleChoices(style, onStyle, vertical = false)
-        if (style == WatermarkStyle.CAPTION) {
-            AnchorChoices(anchor, onAnchor, vertical = false)
-        }
-        val saveDescription = stringResource(R.string.cd_import_save)
+}
+
+@Composable
+private fun ImportActions(
+    canSave: Boolean,
+    canSaveAll: Boolean,
+    multiple: Boolean,
+    saving: Boolean,
+    status: String?,
+    onSave: () -> Unit,
+    onSaveAll: () -> Unit,
+) {
+    val saveDescription = stringResource(R.string.cd_import_save)
+    Text(
+        text = stringResource(if (saving) R.string.import_saving else R.string.import_save),
+        color = Ink,
+        fontFamily = Outfit,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 15.sp,
+        textAlign = TextAlign.Center,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(999.dp))
+            .background(Cream.copy(alpha = if (canSave) 1f else 0.38f))
+            .semantics { contentDescription = saveDescription }
+            .clickable(enabled = canSave, onClick = onSave)
+            .padding(horizontal = 12.dp, vertical = 12.dp),
+    )
+    if (multiple) {
+        Spacer(Modifier.height(8.dp))
+        val allDescription = stringResource(R.string.cd_import_save_all)
         Text(
-            text = stringResource(if (saving) R.string.import_saving else R.string.import_save),
-            color = Ink,
+            text = stringResource(R.string.import_save_all),
+            color = Cream.copy(alpha = if (canSaveAll) 1f else 0.38f),
             fontFamily = Outfit,
-            fontWeight = FontWeight.SemiBold,
+            fontWeight = FontWeight.Medium,
             fontSize = 15.sp,
             textAlign = TextAlign.Center,
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(999.dp))
-                .background(Cream.copy(alpha = if (canSave) 1f else 0.38f))
-                .semantics { contentDescription = saveDescription }
-                .clickable(enabled = canSave, onClick = onSave)
-                .padding(vertical = 12.dp),
+                .background(Color.White.copy(alpha = 0.08f))
+                .semantics { contentDescription = allDescription }
+                .clickable(enabled = canSaveAll, onClick = onSaveAll)
+                .padding(horizontal = 12.dp, vertical = 12.dp),
         )
-        if (multiple) {
-            val allDescription = stringResource(R.string.cd_import_save_all)
-            Text(
-                text = stringResource(R.string.import_save_all),
-                color = Cream.copy(alpha = if (canSaveAll) 1f else 0.38f),
-                fontFamily = Outfit,
-                fontWeight = FontWeight.Medium,
-                fontSize = 15.sp,
-                textAlign = TextAlign.Center,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(999.dp))
-                    .background(Color.White.copy(alpha = 0.08f))
-                    .semantics { contentDescription = allDescription }
-                    .clickable(enabled = canSaveAll, onClick = onSaveAll)
-                    .padding(vertical = 12.dp),
-            )
-        }
-        val message = status
-        if (message != null) {
-            Text(
-                text = message,
-                color = Muted,
-                fontFamily = Outfit,
-                fontSize = 13.sp,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
-            )
-        }
+    }
+    val message = status
+    if (message != null) {
+        Text(
+            text = message,
+            color = Muted,
+            fontFamily = Outfit,
+            fontSize = 13.sp,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
+        )
     }
 }
 
 @Composable
-private fun ImportNoticeCard(kind: ImportNoticeKind, onAllowLocations: () -> Unit) {
+private fun ImportNoticeCard(kind: ImportNoticeKind, onAllowLocations: () -> Unit, inset: Boolean) {
     val title = stringResource(kind.titleRes())
     val body = stringResource(kind.bodyRes())
     Column(
         Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp)
+            .padding(horizontal = if (inset) 16.dp else 0.dp)
             .testTag("import_notice")
             .clip(RoundedCornerShape(16.dp))
             .background(Card)

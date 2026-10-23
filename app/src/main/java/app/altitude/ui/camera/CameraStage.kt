@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -614,21 +615,32 @@ internal fun StyleChoices(
     selected: WatermarkStyle,
     onStyle: (WatermarkStyle) -> Unit,
     vertical: Boolean,
+    wrap: Boolean = false,
 ) {
     val chips: @Composable () -> Unit = {
         WatermarkStyle.entries.forEach { style ->
             StyleChip(stringResource(style.labelRes()), selected == style, fill = vertical) { onStyle(style) }
         }
     }
-    if (vertical) {
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) { chips() }
-    } else {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
-        ) { chips() }
+    when {
+        vertical -> {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) { chips() }
+        }
+        wrap -> {
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) { chips() }
+        }
+        else -> {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+            ) { chips() }
+        }
     }
 }
 
@@ -640,15 +652,15 @@ private fun StyleChip(label: String, selected: Boolean, fill: Boolean, onClick: 
         fontFamily = Outfit,
         fontWeight = FontWeight.Medium,
         fontSize = if (fill) 12.sp else 13.sp,
-        maxLines = 1,
-        softWrap = false,
+        maxLines = if (fill) 2 else 1,
+        softWrap = fill,
         textAlign = TextAlign.Center,
         modifier = Modifier
             .then(if (fill) Modifier.fillMaxWidth() else Modifier)
             .clip(RoundedCornerShape(999.dp))
             .background(if (selected) Color.White else Color.White.copy(alpha = 0.08f))
             .clickable(onClick = onClick)
-            .padding(horizontal = if (fill) 6.dp else 12.dp, vertical = if (fill) 6.dp else 7.dp),
+            .padding(horizontal = if (fill) 8.dp else 12.dp, vertical = if (fill) 7.dp else 7.dp),
     )
 }
 
@@ -657,7 +669,26 @@ internal fun AnchorChoices(
     selected: CaptionAnchor,
     onAnchor: (CaptionAnchor) -> Unit,
     vertical: Boolean,
+    pill: Boolean = false,
 ) {
+    if (pill) {
+        Row(
+            modifier = Modifier.fillMaxWidth().testTag("import_anchor"),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            AnchorPill(
+                stringResource(R.string.anchor_bottom),
+                selected == CaptionAnchor.BOTTOM,
+                Modifier.weight(1f),
+            ) { onAnchor(CaptionAnchor.BOTTOM) }
+            AnchorPill(
+                stringResource(R.string.anchor_top),
+                selected == CaptionAnchor.TOP,
+                Modifier.weight(1f),
+            ) { onAnchor(CaptionAnchor.TOP) }
+        }
+        return
+    }
     val chips: @Composable () -> Unit = {
         AnchorChip(stringResource(R.string.anchor_bottom), selected == CaptionAnchor.BOTTOM) {
             onAnchor(CaptionAnchor.BOTTOM)
@@ -671,6 +702,25 @@ internal fun AnchorChoices(
     } else {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { chips() }
     }
+}
+
+@Composable
+private fun AnchorPill(label: String, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
+    Text(
+        text = label,
+        color = if (selected) Color.Black else Color.White,
+        fontFamily = Outfit,
+        fontWeight = FontWeight.Medium,
+        fontSize = 13.sp,
+        maxLines = 1,
+        softWrap = false,
+        textAlign = TextAlign.Center,
+        modifier = modifier
+            .clip(RoundedCornerShape(999.dp))
+            .background(if (selected) Color.White else Color.White.copy(alpha = 0.08f))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 7.dp),
+    )
 }
 
 @Composable
