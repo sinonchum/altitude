@@ -34,6 +34,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -62,15 +63,19 @@ fun GalleryScreen(
     onDelete: (String) -> Boolean,
     onRefresh: () -> Unit,
     onMessage: (Int) -> Unit,
+    onImport: (List<Uri>) -> Unit,
 ) {
     val context = LocalContext.current
     val pagerState = rememberPagerState(pageCount = { uris.size.coerceAtLeast(1) })
     var pendingDelete by remember { mutableStateOf<String?>(null) }
+    var showChooser by remember { mutableStateOf(false) }
     val deleteLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartIntentSenderForResult(),
     ) { onRefresh() }
     val shareTitle = stringResource(R.string.gallery_share)
     val closeDescription = stringResource(R.string.cd_close_gallery)
+    val importDescription = stringResource(R.string.cd_import_photo)
+    val launchImport = { showChooser = true }
 
     LaunchedEffect(uris.size) {
         if (uris.isEmpty()) return@LaunchedEffect
@@ -115,23 +120,49 @@ fun GalleryScreen(
                     fontSize = 14.sp,
                 )
                 Text(
-                    text = stringResource(R.string.gallery_title),
-                    color = Color(0xFFF3F0E8),
+                    text = stringResource(R.string.gallery_import),
+                    color = Color(0xFF141414),
                     fontFamily = Outfit,
                     fontWeight = FontWeight.SemiBold,
-                    fontSize = 16.sp,
-                    modifier = Modifier.padding(horizontal = 14.dp),
+                    fontSize = 14.sp,
+                    modifier = Modifier
+                        .padding(end = 8.dp)
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(Color(0xFFF4F1EA))
+                        .testTag("gallery_import")
+                        .semantics { contentDescription = importDescription }
+                        .clickable(onClick = launchImport)
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
                 )
             }
             Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                 if (uris.isEmpty()) {
-                    Text(
-                        text = stringResource(R.string.gallery_empty),
-                        color = Color(0xFFB7B3AA),
-                        fontSize = 15.sp,
-                        textAlign = TextAlign.Center,
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier.padding(horizontal = 28.dp),
-                    )
+                    ) {
+                        Text(
+                            text = stringResource(R.string.gallery_empty),
+                            color = Color(0xFFB7B3AA),
+                            fontFamily = Outfit,
+                            fontSize = 15.sp,
+                            textAlign = TextAlign.Center,
+                        )
+                        Text(
+                            text = stringResource(R.string.gallery_import),
+                            color = Color(0xFF141414),
+                            fontFamily = Outfit,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 15.sp,
+                            modifier = Modifier
+                                .padding(top = 18.dp)
+                                .clip(RoundedCornerShape(999.dp))
+                                .background(Color(0xFFF4F1EA))
+                                .semantics { contentDescription = importDescription }
+                                .clickable(onClick = launchImport)
+                                .padding(horizontal = 22.dp, vertical = 12.dp),
+                        )
+                    }
                 } else {
                     HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
                         AlbumPage(uris[page])
@@ -162,6 +193,7 @@ fun GalleryScreen(
                         .padding(horizontal = 16.dp, vertical = 12.dp),
                     horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
                 ) {
+                    GalleryAction(stringResource(R.string.gallery_import), importDescription, launchImport)
                     GalleryAction(stringResource(R.string.gallery_share), stringResource(R.string.cd_share_photo)) {
                         runCatching { shareAlbumPhoto(context, Uri.parse(current), shareTitle) }
                             .onFailure { onMessage(R.string.error_share_failed) }
@@ -175,6 +207,15 @@ fun GalleryScreen(
                     }
                 }
             }
+        }
+        if (showChooser) {
+            ImportChooser(
+                onClose = { showChooser = false },
+                onPicked = { picked ->
+                    showChooser = false
+                    if (picked.isNotEmpty()) onImport(picked)
+                },
+            )
         }
     }
 

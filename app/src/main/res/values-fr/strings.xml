@@ -141,7 +141,7 @@
 
     <string name="cd_last_photo">Dernière photo</string>
     <string name="gallery_title">Photos</string>
-    <string name="gallery_empty">Pas encore de photo. Celles que vous prenez apparaissent ici.</string>
+    <string name="gallery_empty">Pas encore de photo. Prenez-en une, ou importez une photo existante.</string>
     <string name="gallery_share">Partager</string>
     <string name="gallery_delete">Supprimer</string>
     <string name="gallery_open">Ouvrir dans la galerie</string>
@@ -158,6 +158,42 @@
     <string name="error_share_failed">Impossible de partager la photo</string>
     <string name="error_delete_failed">Impossible de supprimer la photo</string>
     <string name="error_open_failed">Impossible d’ouvrir la photo</string>
+
+    <string name="gallery_import">Importer</string>
+    <string name="cd_import_photo">Importer des photos</string>
+    <string name="import_title">Encadrer la photo</string>
+    <string name="import_save">Enregistrer une copie</string>
+    <string name="import_save_all">Tout enregistrer</string>
+    <string name="import_saving">Enregistrement…</string>
+    <string name="import_saving_progress">Enregistrement %1$d sur %2$d</string>
+    <string name="import_reading">Lecture de la photo…</string>
+    <string name="import_no_location_title">Cette photo n’a pas de lieu</string>
+    <string name="import_no_location_body">Le cadre peut quand même être ajouté. Seules les données présentes sur la photo sont affichées.</string>
+    <string name="import_chooser_title">Choisir des photos</string>
+    <string name="import_needs_access_body">Autorisez toutes les photos et les positions des photos. Altitude lit alors le fichier d’origine, GPS compris. Le sélecteur du système retire le lieu : choisissez la photo dans cette liste.</string>
+    <string name="import_allow_photos">Autoriser les photos</string>
+    <string name="import_chooser_empty">Aucune photo à afficher.</string>
+    <string name="import_partial_title">Seules les photos choisies sont visibles</string>
+    <string name="import_partial_body">Le lieu de ces photos peut être lu une fois les positions des photos autorisées. Pour toutes les photos, ouvrez Réglages, Applications, Altitude, Autorisations, puis Photos et vidéos, et choisissez Tout autoriser.</string>
+    <string name="import_location_off_title">Les positions des photos sont désactivées</string>
+    <string name="import_location_off_body">Android retire le GPS tant que les positions des photos ne sont pas autorisées pour Altitude. Autorisez-les, puis choisissez à nouveau la photo.</string>
+    <string name="import_browse">Parcourir les fichiers</string>
+    <string name="import_use_selected">Utiliser la sélection</string>
+    <string name="cd_import_choice">Photo de la bibliothèque</string>
+    <string name="cd_import_browse">Parcourir les fichiers pour une photo</string>
+    <string name="cd_import_use_selected">Encadrer les photos choisies</string>
+    <string name="import_location_hidden_title">Le système a retiré le lieu de cette photo</string>
+    <string name="import_location_hidden_body">Le sélecteur de photos et certaines galeries retirent le GPS avant qu’une application puisse le lire. Autorisez toutes les photos et les positions des photos, puis importez de nouveau depuis la liste de cette application. Dans Réglages, ouvrez Applications, Altitude, Autorisations, Photos et vidéos, choisissez Tout autoriser, et autorisez la position dans les photos.</string>
+    <string name="import_allow_photo_locations">Autoriser l’accès aux photos</string>
+    <string name="import_computed_title">Calculée depuis les coordonnées</string>
+    <string name="import_altitude_computed">Altitude calculée à partir des coordonnées. La photo n’en contient pas.</string>
+    <string name="import_missing_title">Altitude indisponible</string>
+    <string name="import_altitude_missing">Pas d’altitude dans la photo, et aucun calcul possible à partir de ses coordonnées.</string>
+    <string name="format_altitude_computed">≈ %1$s</string>
+    <string name="cd_close_import">Fermer le cadrage</string>
+    <string name="cd_import_save">Enregistrer une nouvelle copie</string>
+    <string name="cd_import_save_all">Enregistrer une nouvelle copie de chaque photo</string>
+    <string name="cd_import_preview">Photo encadrée</string>
 
     <string name="format_altitude">%1$s %2$s</string>
     <string name="format_accuracy">± %1$s %2$s</string>

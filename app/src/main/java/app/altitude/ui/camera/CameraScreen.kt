@@ -140,6 +140,7 @@ fun CameraScreen(
         epochMs = state.nowMillis,
     )
     var cameraError by remember { mutableStateOf<Int?>(null) }
+    var importUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
     var busy by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val imageCapture = remember {
@@ -427,7 +428,7 @@ fun CameraScreen(
                 .fillMaxSize()
                 .windowInsetsPadding(WindowInsets.safeDrawing),
         )
-        if (state.galleryOpen) {
+        if (state.galleryOpen && importUris.isEmpty()) {
             GalleryScreen(
                 uris = state.photos,
                 notice = state.saveMessage,
@@ -435,6 +436,20 @@ fun CameraScreen(
                 onDelete = onDeletePhoto,
                 onRefresh = onRefreshAlbum,
                 onMessage = { onSaved(it, null) },
+                onImport = { importUris = it },
+            )
+        }
+        if (importUris.isNotEmpty()) {
+            ImportPreviewScreen(
+                uris = importUris,
+                style = state.prefs.watermarkStyle,
+                anchor = state.prefs.captionAnchor,
+                unit = state.prefs.unit,
+                showPlace = state.prefs.showPlace,
+                onStyle = onStyle,
+                onAnchor = onAnchor,
+                onClose = { importUris = emptyList() },
+                onSaved = onSaved,
             )
         }
     }
