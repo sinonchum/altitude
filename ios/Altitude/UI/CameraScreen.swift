@@ -20,41 +20,56 @@ struct CameraScreen: View {
     @State private var focusLocked = false
     @State private var failed = false
     @State private var previewView: PreviewView?
+    /// Window insets captured outside `body`. A full-screen reader reports none.
+    @State private var safeInsets = EdgeInsets(top: 59, leading: 0, bottom: 34, trailing: 0)
 
     var body: some View {
-        ZStack {
-            Color.black.ignoresSafeArea()
-            GeometryReader { geo in
-                let landscape = geo.size.width > geo.size.height
-                let safe = geo.safeAreaInsets
-                ZStack {
-                    if !model.cameraGranted && model.preview == nil {
-                        permission
-                            .safeAreaPadding(.horizontal, 28)
-                    } else if landscape {
-                        landscapeStage(safe: safe)
-                    } else {
-                        portraitStage(safe: safe)
-                    }
-                    if flashCover {
-                        Color.white.ignoresSafeArea()
-                    }
-                    if let message = model.saveMessage {
-                        Text(message)
-                            .font(Outfit.medium(14))
-                            .foregroundStyle(Color(hex: 0x141414))
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 10)
-                            .background(Color(hex: 0xF4F1EA), in: Capsule())
-                            .frame(maxHeight: .infinity, alignment: .top)
-                            .padding(.top, 8)
-                    }
+        GeometryReader { geo in
+            let landscape = geo.size.width > geo.size.height
+            ZStack {
+                Color.black
+                if !model.cameraGranted && model.preview == nil {
+                    permission
+                        .padding(.horizontal, 28)
+                        .padding(.top, safeInsets.top)
+                        .padding(.bottom, safeInsets.bottom)
+                } else if landscape {
+                    landscapeStage(safe: safeInsets)
+                } else {
+                    portraitStage(safe: EdgeInsets())
+                        .padding(.top, safeInsets.top)
+                        .padding(.bottom, safeInsets.bottom)
                 }
-                .ignoresSafeArea(edges: landscape ? .all : [])
+                if flashCover {
+                    Color.white
+                }
+                if let message = model.saveMessage {
+                    Text(message)
+                        .font(Outfit.medium(14))
+                        .foregroundStyle(Color(hex: 0x141414))
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .background(Color(hex: 0xF4F1EA), in: Capsule())
+                        .frame(maxHeight: .infinity, alignment: .top)
+                        .padding(.top, safeInsets.top + 8)
+                }
             }
+            .onChange(of: landscape) { _, _ in captureSafeInsets() }
         }
-        .onAppear(perform: configure)
+        .ignoresSafeArea()
+        .onAppear {
+            captureSafeInsets()
+            configure()
+        }
         .onChange(of: model.prefs.frontCamera) { _, _ in configure() }
+    }
+
+    private func captureSafeInsets() {
+        let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
+        let window = scene?.keyWindow ?? scene?.windows.first
+        guard let window else { return }
+        let insets = window.safeAreaInsets
+        safeInsets = EdgeInsets(top: insets.top, leading: insets.left, bottom: insets.bottom, trailing: insets.right)
     }
 
     private var copy: Copy { model.copy }
@@ -107,17 +122,29 @@ struct CameraScreen: View {
     private func landscapeStage(safe: EdgeInsets) -> some View {
         let leading = safe.leading
         let trailing = safe.trailing
+        let vertical = max(safe.top, safe.bottom, 8)
+        let utility = CGFloat(CameraStageMetrics.utilityRail)
+        let zoom = CGFloat(CameraStageMetrics.zoomRail)
+        let shutter = CGFloat(CameraStageMetrics.shutterRail)
+        // Padding sits inside the rail so the rail background reaches the screen edge
+        // and the viewfinder still fills the height between the rails.
         return HStack(spacing: 0) {
             if shutterOnEnd {
-                utilityRail.frame(width: CGFloat(CameraStageMetrics.utilityRail)).padding(.leading, leading).padding(.vertical, max(safe.top, safe.bottom, 4))
+                utilityRail.padding(.leading, leading).padding(.vertical, vertical)
+                    .frame(width: utility + leading, alignment: .trailing)
                 GeometryReader { mid in landscapeFrame(in: mid.size) }
-                zoomColumn.frame(width: CGFloat(CameraStageMetrics.zoomRail)).padding(.vertical, max(safe.top, safe.bottom, 4))
-                captureRail.frame(width: CGFloat(CameraStageMetrics.shutterRail)).padding(.trailing, trailing).padding(.vertical, max(safe.top, safe.bottom, 4))
+                zoomColumn.padding(.vertical, vertical)
+                    .frame(width: zoom)
+                captureRail.padding(.trailing, trailing).padding(.vertical, vertical)
+                    .frame(width: shutter + trailing, alignment: .leading)
             } else {
-                captureRail.frame(width: CGFloat(CameraStageMetrics.shutterRail)).padding(.leading, leading).padding(.vertical, max(safe.top, safe.bottom, 4))
-                zoomColumn.frame(width: CGFloat(CameraStageMetrics.zoomRail)).padding(.vertical, max(safe.top, safe.bottom, 4))
+                captureRail.padding(.leading, leading).padding(.vertical, vertical)
+                    .frame(width: shutter + leading, alignment: .trailing)
+                zoomColumn.padding(.vertical, vertical)
+                    .frame(width: zoom)
                 GeometryReader { mid in landscapeFrame(in: mid.size) }
-                utilityRail.frame(width: CGFloat(CameraStageMetrics.utilityRail)).padding(.trailing, trailing).padding(.vertical, max(safe.top, safe.bottom, 4))
+                utilityRail.padding(.trailing, trailing).padding(.vertical, vertical)
+                    .frame(width: utility + trailing, alignment: .leading)
             }
         }
     }
