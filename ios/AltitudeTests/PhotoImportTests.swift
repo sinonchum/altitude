@@ -231,6 +231,38 @@ final class PhotoImportTests: XCTestCase {
         XCTAssertEqual(optionalList(#"{"elevation":["3648.5", null]}"#), [3648.5, nil] as [Double?])
     }
 
+    func testLimitedLibraryKeepsThePickedAssetLocation() {
+        let kept = mergePhotoLocation(
+            exifLatitude: nil,
+            exifLongitude: nil,
+            assetLatitude: 29.65218,
+            assetLongitude: 91.117,
+            assetWasReadable: true
+        )
+        XCTAssertEqual(kept.latitude ?? 0, 29.65218, accuracy: 0.00001)
+        XCTAssertEqual(kept.longitude ?? 0, 91.117, accuracy: 0.00001)
+        XCTAssertFalse(kept.redacted)
+        XCTAssertEqual(
+            importNoticeKind(hasCoordinates: kept.hasCoordinates, altitude: nil, locationRedacted: kept.redacted),
+            .none
+        )
+
+        let dropped = mergePhotoLocation(
+            exifLatitude: nil,
+            exifLongitude: nil,
+            assetLatitude: nil,
+            assetLongitude: nil,
+            assetWasReadable: false
+        )
+        XCTAssertNil(dropped.latitude)
+        XCTAssertNil(dropped.longitude)
+        XCTAssertTrue(dropped.redacted)
+        XCTAssertEqual(
+            importNoticeKind(hasCoordinates: dropped.hasCoordinates, altitude: nil, locationRedacted: dropped.redacted),
+            .locationHidden
+        )
+    }
+
     func testAssetLocationFillsAStrippedFileAndExifWins() {
         let exif = mergePhotoLocation(
             exifLatitude: 29.65,

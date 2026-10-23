@@ -132,27 +132,28 @@ Acceptance:
 
 ## Step 6 — Gallery and permissions on device
 
-Features: in-app pager, share, delete confirm, open in Photos. Permission prompts on the display and on the camera gate.
+Features: in-app pager, share, delete confirm, open in Photos. Location, camera, and photo access are requested at the moment of need, after a short in-app explanation. Launch, opening the camera, and opening Settings do not ask for the photo library.
 
-Implementation: `GalleryView`, Photos framework, `CLLocationManager` authorization, `AVCaptureDevice.requestAccess`, `PHPhotoLibrary.requestAuthorization`.
+Implementation: `GalleryView`, Photos framework. Saving calls `PHPhotoLibrary.requestAuthorization(for: .addOnly)` on the first save. Reading calls `requestAuthorization(for: .readWrite)` only from the gallery or import explanation button. `PhotoStore.list()` returns nothing until read access is already granted, so a fetch cannot present the system dialog. Location uses `requestWhenInUseAuthorization` from the onboarding and display buttons. Camera uses `AVCaptureDevice.requestAccess` from the onboarding and camera-gate buttons. A denial opens Settings.
 
 Depends on: step 3 album, step 5 thumbnail.
 
-Parallel with: the screenshot work in steps 4 and 5. A simulator UI test does not grant the system dialogs.
+Parallel with: the screenshot work in steps 4 and 5. CI grants photos, location, and camera with `simctl privacy` before the UI tests, and a visible system alert fails the screenshot.
 
-Test: `AlbumQuery` unit tests. Gallery empty state is reachable from the camera when the album is empty. Manual device check is left to a signed install. CI does not tap the system permission dialog.
+Test: `AlbumQuery` unit tests. Gallery empty state is the album-empty sentence only after read access. Before that, the gallery shows the in-app explanation.
 
 Acceptance:
 
 - [ ] Gallery strings exist in all three languages.
 - [ ] Delete and share actions are present in the gallery view.
 - [ ] Denied location and denied camera render an explanation and a button, not a blank screen.
+- [ ] Opening the gallery or import before read access shows an explanation. The system photo dialog is not requested at launch, when the camera opens, or when Settings opens.
 
 ## Step 7 — CI, screenshots, unsigned build
 
 Features: a build a reviewer can look at without a Mac on this VM.
 
-Implementation: `.github/workflows/ios.yml` on `macos-latest`. XcodeGen creates the project. `xcodebuild test` runs unit and UI tests on an available iPhone simulator. UI tests write PNGs. The workflow uploads the screenshots, the `.xcresult`, a simulator `.app`, and an unsigned `.xcarchive` when archive succeeds. Signing is off. No Apple secret.
+Implementation: `.github/workflows/ios.yml` on `macos-latest`. XcodeGen creates the project. The workflow builds for testing, installs `Altitude.app`, then runs `xcrun simctl privacy <udid> grant photos|location|camera app.altitude.ios` before `xcodebuild test-without-building`. UI tests write PNGs and fail if an app alert or a SpringBoard alert is visible. The workflow uploads the screenshots, the `.xcresult`, a simulator `.app`, and an unsigned `.xcarchive` when archive succeeds. The simulator test is signed with an ad-hoc identity. The device archive turns signing off. No Apple secret.
 
 Depends on: steps 1–6.
 
@@ -164,7 +165,8 @@ Acceptance:
 
 - [ ] The workflow is green.
 - [ ] Unit tests and UI tests ran on an iPhone simulator.
-- [ ] Screenshot artifacts include portrait and landscape, back and front, the display, and Settings in three languages.
+- [ ] Screenshot artifacts include portrait and landscape, back and front, the display, and Settings in three languages, with no system alert covering them.
+- [ ] The workflow grants photos, location, and camera before the UI tests, and a visible system alert fails the screenshot.
 - [ ] An unsigned `.app` or `.xcarchive` is uploaded. The workflow does not read a signing certificate or an App Store key.
 
 ## Step 8 — Frame an existing photo
@@ -175,10 +177,10 @@ Implementation:
 
 - `PhotoImport` ports the Android EXIF clock, signed GPS altitude, altitude selection, notice kind, and Open-Meteo URL/parse/cache key. No UIKit in those functions.
 - `PhotoJPEG.capture` reads ImageIO EXIF and GPS dictionaries, including `OffsetTimeOriginal` and `GPSAltitudeRef`.
-- `PhotosPicker` uses `PHPhotoLibrary.shared()` so items carry asset identifiers. `PhotoImporter` requests original image data and, when the file has no GPS, uses `PHAsset.location`. A missing asset is treated as redacted. A readable asset with no GPS is treated as absent.
+- `PhotosPicker` uses `PHPhotoLibrary.shared()` so items carry asset identifiers. `PhotoImporter` requests original image data and, when the file has no GPS, uses `PHAsset.location`. Limited library access still returns that location for an asset the person just picked, so a readable asset is not treated as redacted. A missing asset is treated as redacted and the preview shows the dropped-location notice. A readable asset with no GPS is treated as absent.
 - `ElevationDirectory` batches the points that still need a height, with the same user agent and one-request-per-second spacing.
 - `ImportPreviewView` renders through `WatermarkRenderer`, which now honors a top plate and a top mount. Blank altitude text is not drawn.
-- Strings live in the catalog in English, Simplified Chinese, and French. Permission sentences tell the person to use Settings → Altitude → Photos → Full Access.
+- Strings live in the catalog in English, Simplified Chinese, and French. The dropped-location notice says the location was left out and that Limited access still includes the location of a selected photo. Full Access is Settings → Altitude → Photos.
 - Version is `1.1.0` build `2`.
 
 Depends on: steps 1–3 (formatting, strings, watermark drawing, album save, Nominatim). The Android reference is `cursor/import-photo-frame-c835`. The Android tree is not modified.
@@ -192,7 +194,7 @@ Acceptance:
 - [ ] EXIF wall clock stays `2024-06-15 14:30` with offset `+08:00`. GPS-only time shifts into the recorded offset. Blank dates and unsigned offsets are rejected.
 - [ ] `GPSAltitudeRef` 1 is negative. Zero and negative EXIF altitudes win over a lookup. A lookup runs only when coordinates exist and EXIF altitude is missing. No coordinates means no invented number.
 - [ ] Open-Meteo URL and cache key match Android (`29.65218` / `91.11700`, cache `29.6522,91.1170`). A null elevation entry stays nil.
-- [ ] A full-quality JPEG keeps GPS. A stripped file plus a readable asset location uses that location. Neither source, with no readable asset, is the hidden-location notice.
+- [ ] A full-quality JPEG keeps GPS. Limited access keeps `PHAsset.location` for a picked asset, and that location fills a stripped file. Neither source, with no readable asset, is the dropped-location notice in Chinese, English, and French.
 - [ ] Computed altitude is drawn with `≈`. Missing altitude and missing coordinates are omitted from the saved image, including the dash placeholder.
 - [ ] Plate and mount can sit on top. The import preview shows styles and the top/bottom control. Portrait and landscape photos are upright.
 - [ ] Import screenshots exist for the entry, portrait photo, landscape photo, no GPS, and computed altitude, in both device orientations, with the notice inside the window in English, Chinese, and French.
@@ -209,7 +211,7 @@ Acceptance:
 
 ## Checklist
 
-Status values: `pass` only after a green macOS workflow. Evidence: [run 39942210594](https://github.com/sinonchum/altitude/actions/runs/39942210594) on iPhone 17 Pro (Xcode 26.6, iOS 26.5). 63 unit tests passed, including the ported Nominatim payloads, catalog parity, and the watermark JPEG size plus GPS and TIFF software tags. All 8 UI screenshot tests passed, including the landscape preview fraction. Artifacts: `ios-screenshots`, `ios-unsigned-build`, `ios-xcresult`.
+Status values: `pass` only after a green macOS workflow. Evidence: [run 39942210594](https://github.com/sinonchum/altitude/actions/runs/39942210594) on iPhone 17 Pro (Xcode 26.6, iOS 26.5). 63 unit tests passed, including the ported Nominatim payloads, catalog parity, and the watermark JPEG size plus GPS and TIFF software tags. The landscape preview fraction passed. Artifacts: `ios-screenshots`, `ios-unsigned-build`, `ios-xcresult`. Review of those screenshots shows the iOS “full access to your Photo Library” alert covering `camera-portrait-back`, `camera-landscape-back`, and `settings-zh`, so A4 and A5 are pending again. A later green run has to show those screens with no system alert. GitHub Actions is blocked on account billing, so B0–B8 stay pending until that run exists.
 
 | ID | Criterion | Status |
 | --- | --- | --- |
@@ -217,8 +219,8 @@ Status values: `pass` only after a green macOS workflow. Evidence: [run 39942210
 | A1 | Domain XCTest suite passes on the iPhone simulator | pass |
 | A2 | String catalog parity test passes | pass |
 | A3 | Watermark JPEG size and GPS metadata test passes | pass |
-| A4 | Display and trilingual settings screenshots are produced | pass |
-| A5 | Portrait and landscape, back and front, camera screenshots are produced | pass |
+| A4 | Display and trilingual settings screenshots are produced with no system alert | pending |
+| A5 | Portrait and landscape, back and front, camera screenshots are produced with no system alert | pending |
 | A6 | Landscape UI test checks the preview fraction | pass |
 | A7 | Unsigned build artifact is uploaded | pass |
 | A8 | Workflow run is green | pass |
@@ -232,4 +234,4 @@ Status values: `pass` only after a green macOS workflow. Evidence: [run 39942210
 | B7 | Settings shows 1.1.0 (2) and the new strings pass the catalog parity test | pending |
 | B8 | Workflow run for this milestone is green | pending |
 
-Version shown in Settings: **1.1.0 (2)**. Rows B0–B8 stay pending until a green macOS run covers them. Rows A0–A8 stay pass from [run 39942210594](https://github.com/sinonchum/altitude/actions/runs/39942210594).
+Version shown in Settings: **1.1.0 (2)**. Rows A4 and A5 are pending until a green run produces those screenshots with no system alert on top. Rows A0–A3 and A6–A8 stay pass from [run 39942210594](https://github.com/sinonchum/altitude/actions/runs/39942210594). Rows B0–B8 stay pending until a green macOS run covers them.

@@ -209,9 +209,10 @@ Standard exonyms are Nominatim’s, per `accept-language`. The app does not rena
 
 | Need | When | If denied |
 | --- | --- | --- |
-| Location when in use, precise | Onboarding step 2, and again from the display prompt | Display explains it. Button asks again, or opens Settings once the system will not ask. |
-| Camera | Onboarding step 3, skippable, and from the camera gate | Display still works. Camera shows a closed-camera explanation. |
-| Photo library add and read | First save, when the gallery opens, and when importing an existing photo | Save error string. Gallery can be empty. Import explains how to allow Full Access under Settings → Altitude → Photos so GPS is not stripped. |
+| Location when in use, precise | The Allow button on onboarding step 2, and the button on the display prompt. Not at launch, and not when Settings opens. | The explanation is already on screen. The button asks, or opens Settings once the system will not ask. |
+| Camera | The Allow button on onboarding step 3 (skippable), and the button on the camera gate. Opening the camera shows the explanation first. | Display still works. A denial opens Settings. |
+| Photo library add | The first save, as `PHAccessLevel.addOnly`. Not at launch, and not when the camera or Settings opens. | The save error string. Add-only access does not read the library. |
+| Photo library read | The Allow button on the gallery explanation, or the Allow button on the import explanation. | The gallery shows that explanation instead of an empty album. Import stays on the explanation until access is granted. Limited access still exposes `PHAsset.location` for the assets the person picked. If a location had to be dropped, the preview says so in Chinese, English, and French. A denial opens Settings → Altitude → Photos. |
 | Motion | Barometer, requested with the altimeter start | GPS-only reading. No crash. |
 
 Onboarding can be finished with “Not now” and “Use the display only”. Completion is stored.
@@ -221,9 +222,10 @@ Onboarding can be finished with “Not now” and “Use the display only”. Co
 Android source: `GalleryScreen`, `AlbumIndex`, `AlbumQuery`.
 
 - Opens from the last-photo thumbnail.
-- Pages through the Altitude album, newest first.
+- Before read access, shows a short explanation. The system dialog waits for that button.
+- Pages through the Altitude album, newest first, once read access is granted.
 - Share, delete (with confirm), open in the system Photos app, close.
-- Empty state copy matches Android.
+- Empty state copy matches Android, and only appears when the album itself is empty.
 - `AlbumQuery` is ported for the unit tests. iOS does not query MediaStore. It fetches `PHAsset`s in the Altitude `PHAssetCollection`.
 
 ### 6.8 Settings and language
@@ -276,7 +278,7 @@ The person picks one to twelve photos that already exist. Altitude frames each o
 | Altitude | `GPSAltitude`, signed with `GPSAltitudeRef` (1 means below sea level). Zero and negative values count. | If the photo has coordinates, one Open-Meteo elevation lookup (Copernicus DEM). The frame shows `≈` and the preview says the altitude was computed. If that also fails, the altitude line is omitted. No placeholder dashes are burned into the saved image. |
 | Place name | The existing Nominatim pipeline, only when coordinates exist and place names are enabled. | The place line is omitted. |
 
-A photo whose GPS was stripped because the library asset could not be read says the system removed the location. A photo that was read and still has no GPS says the photo has no location. Neither case invents a coordinate.
+Limited photo access still exposes `PHAsset.location` for each asset the person picked. That location fills a file whose GPS was stripped, and the hidden-location notice stays off. A photo whose asset could not be read, and whose file also has no GPS, says the location was left out. A photo that was read and still has no GPS says the photo has no location. Neither case invents a coordinate.
 
 The picker is `PhotosPicker` on `PHPhotoLibrary.shared()`, at most 12 images, so each item has an asset identifier. The loader asks Photos for the original image data (`PHImageRequestOptions.version = .original`). EXIF inside that file wins. The asset location is only a fill-in for a file whose GPS was removed. Saving calls `PHAssetCreationRequest` and writes a new JPEG into the Altitude album. The original asset is never edited.
 
@@ -290,4 +292,4 @@ See `DEV_PLAN.md` for the step-by-step acceptance list. The product is done when
 
 - Every Android unit-test behavior listed in section 9 of the Android PRD, plus the place-name, zoom, focus, orientation, and locale tests, passes as XCTest on an iPhone simulator.
 - UI tests capture portrait and landscape, back and front, the display, and Settings in Chinese, English, and French, from the mock camera.
-- GitHub Actions on `macos-latest` builds, tests, uploads those screenshots, and uploads an unsigned `.app` and, when the toolchain allows it, an unsigned `.xcarchive`. No Apple account secret is used.
+- GitHub Actions on `macos-latest` builds for testing, grants photos, location, and camera on the simulator, then runs the tests. A screenshot fails if a system alert is visible. The workflow uploads those screenshots, an unsigned `.app`, and, when the toolchain allows it, an unsigned `.xcarchive`. No Apple account secret is used.

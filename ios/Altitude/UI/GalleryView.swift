@@ -1,3 +1,4 @@
+import Photos
 import SwiftUI
 import UIKit
 
@@ -10,7 +11,9 @@ struct GalleryView: View {
         let copy = model.copy
         ZStack {
             Color.black.ignoresSafeArea()
-            if model.photos.isEmpty {
+            if needsPhotoAccess {
+                photoAccess(copy)
+            } else if model.photos.isEmpty {
                 Text(copy.text("gallery_empty"))
                     .font(Outfit.regular(16))
                     .foregroundStyle(Color(hex: 0xB7B7B2))
@@ -83,6 +86,41 @@ struct GalleryView: View {
         } message: {
             Text(copy.text("gallery_delete_body"))
         }
+    }
+
+    /// Read access is asked here, after this explanation, not when the camera or Settings opens.
+    private var needsPhotoAccess: Bool {
+        model.preview == nil && model.photoRead != .authorized && model.photoRead != .limited
+    }
+
+    private func photoAccess(_ copy: Copy) -> some View {
+        VStack(spacing: 12) {
+            Text(copy.text("gallery_permission_title"))
+                .font(Outfit.semibold(20))
+                .foregroundStyle(.white)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+            Text(copy.text("gallery_permission_body"))
+                .font(Outfit.regular(14))
+                .foregroundStyle(Color(hex: 0xB7B7B2))
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+            Button(copy.text("gallery_permission_action")) {
+                if model.photoRead == .notDetermined {
+                    Task { await model.allowPhotoRead() }
+                } else {
+                    model.openSettings()
+                }
+            }
+            .font(Outfit.semibold(15))
+            .foregroundStyle(.black)
+            .padding(.horizontal, 18)
+            .padding(.vertical, 10)
+            .background(Color.white, in: Capsule())
+            .buttonStyle(.plain)
+        }
+        .padding(28)
+        .accessibilityIdentifier("gallery.permission")
     }
 
     private func share() {

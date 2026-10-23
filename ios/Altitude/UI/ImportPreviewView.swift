@@ -238,7 +238,13 @@ struct ImportPreviewView: View {
                 .foregroundStyle(Color(hex: 0xB7B7B2))
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
-            Button(copy.text("import_allow_photos")) { model.openSettings() }
+            Button(copy.text("import_allow_photos")) {
+                if model.photoRead == .notDetermined {
+                    Task { await model.allowPhotoRead() }
+                } else {
+                    model.openSettings()
+                }
+            }
                 .font(Outfit.semibold(15))
                 .foregroundStyle(.black)
                 .padding(.horizontal, 18)

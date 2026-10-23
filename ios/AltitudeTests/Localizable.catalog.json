@@ -2762,6 +2762,75 @@
         }
       }
     },
+    "gallery_permission_title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "See the photos Altitude saved"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "查看 Altitude 保存的照片"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Voir les photos qu’Altitude a enregistrées"
+          }
+        }
+      }
+    },
+    "gallery_permission_body": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Photo access is requested only when you open the gallery or import a picture. Saving uses add-only access and does not read your library."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "只有打开相册或导入照片时才会请求读取权限。保存只需“仅添加”权限，不会读取你的图库。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "L’accès aux photos n’est demandé qu’en ouvrant la galerie ou en important une image. L’enregistrement ajoute seulement une photo et ne lit pas la photothèque."
+          }
+        }
+      }
+    },
+    "gallery_permission_action": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allow photo access"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "允许访问照片"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autoriser l’accès aux photos"
+          }
+        }
+      }
+    },
     "gallery_share": {
       "extractionState": "manual",
       "localizations": {
@@ -4187,19 +4256,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Allow full photo library access so Altitude can read each photo’s own GPS. Limited access can hide location. In Settings, open Altitude, then Photos, and choose Full Access."
+            "value": "Altitude reads a photo’s location, time, and altitude only when you import it or open the gallery. Limited access still includes the location of photos you select. Saving a new photo only adds it."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "请允许完全访问照片，Altitude 才能读取每张照片自己的 GPS。受限访问可能隐藏位置。请在设置中打开 Altitude，然后打开照片，并选择完全访问。"
+            "value": "只有在导入照片或打开相册时，Altitude 才会读取照片的位置、时间和海拔。选择“选中的照片”后，仍可读到这些照片的位置。保存新照片只会添加，不会浏览图库。"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Autorisez l’accès complet à la photothèque pour qu’Altitude lise le GPS propre à chaque photo. Un accès limité peut masquer le lieu. Dans Réglages, ouvrez Altitude, puis Photos, et choisissez Accès complet."
+            "value": "Altitude lit le lieu, l’heure et l’altitude d’une photo seulement quand vous l’importez ou ouvrez la galerie. Un accès limité inclut encore le lieu des photos choisies. Enregistrer n’ajoute qu’une nouvelle photo."
           }
         }
       }
@@ -4302,19 +4371,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Photo locations are off"
+            "value": "Photo access is needed to import"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "尚未允许照片位置"
+            "value": "导入照片需要访问权限"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Les positions des photos sont désactivées"
+            "value": "L’import demande l’accès aux photos"
           }
         }
       }
@@ -4463,19 +4532,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The system removed this photo’s location"
+            "value": "This photo’s location was left out"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "系统去掉了这张照片的位置"
+            "value": "这张照片的位置被去掉了"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Le système a retiré le lieu de cette photo"
+            "value": "Le lieu de cette photo a été omis"
           }
         }
       }
@@ -4486,19 +4555,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Without full photo library access, the picker can strip GPS before Altitude reads the file. Choose Full Access under Settings, Altitude, Photos, then import the photo again."
+            "value": "Altitude could not read a location from the file or from the photo you picked. Limited access still includes the location of photos you select. To import any photo, open Settings, then Altitude, then Photos, and choose Full Access."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "如果没有照片图库的完全访问权限，选择器可能在读取前去掉 GPS。请在设置、Altitude、照片中选择完全访问，然后重新导入。"
+            "value": "Altitude 没能从文件或你选中的照片里读到位置。选择“选中的照片”时，仍可读到这些照片的位置。若要导入任意照片，请打开设置，然后打开 Altitude、照片，并选择完全访问。"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sans accès complet à la photothèque, le sélecteur peut retirer le GPS avant qu’Altitude lise le fichier. Choisissez Accès complet dans Réglages, Altitude, Photos, puis importez à nouveau."
+            "value": "Altitude n’a pas pu lire de lieu dans le fichier ni dans la photo choisie. Un accès limité inclut encore le lieu des photos sélectionnées. Pour importer n’importe quelle photo, ouvrez Réglages, puis Altitude, puis Photos, et choisissez Accès complet."
           }
         }
       }

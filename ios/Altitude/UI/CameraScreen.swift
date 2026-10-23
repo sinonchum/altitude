@@ -440,7 +440,7 @@ struct CameraScreen: View {
     }
 
     private var thumbnail: some View {
-        Button { model.galleryOpen = true } label: {
+        Button { model.openGallery() } label: {
             Group {
                 if let photo = model.photos.first {
                     LibraryThumb(photo: photo)

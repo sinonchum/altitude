@@ -152,7 +152,6 @@ final class AppModel: NSObject, CLLocationManagerDelegate {
             }
         }
         ensureLocation()
-        refreshAlbum()
     }
 
     func setMode(_ mode: AppMode) { self.mode = mode }
@@ -208,8 +207,17 @@ final class AppModel: NSObject, CLLocationManagerDelegate {
     }
 
     func requestCamera() async {
-        let granted = await AVCaptureDevice.requestAccess(for: .video)
-        cameraGranted = granted
+        switch AVCaptureDevice.authorizationStatus(for: .video) {
+        case .authorized:
+            cameraGranted = true
+        case .notDetermined:
+            cameraGranted = await AVCaptureDevice.requestAccess(for: .video)
+        case .denied, .restricted:
+            cameraGranted = false
+            openSettings()
+        @unknown default:
+            cameraGranted = await AVCaptureDevice.requestAccess(for: .video)
+        }
     }
 
     func refreshPermissions() {
@@ -222,34 +230,61 @@ final class AppModel: NSObject, CLLocationManagerDelegate {
         ensureLocation()
     }
 
+    var photoRead = PHAuthorizationStatus.notDetermined
+
     func refreshAlbum() {
-        guard preview == nil else { return }
+        guard preview == nil, PhotoStore.canRead() else { return }
         photos = PhotoStore.list()
+    }
+
+    func openGallery() {
+        guard preview == nil else {
+            galleryOpen = true
+            return
+        }
+        photoRead = PhotoStore.readStatus()
+        galleryOpen = true
+        if PhotoStore.canRead() {
+            Task {
+                await PhotoStore.adoptPending()
+                refreshAlbum()
+            }
+        }
+    }
+
+    func allowPhotoRead() async {
+        let status = await PhotoStore.requestRead()
+        photoRead = status
+        importLimited = status == .limited
+        if status == .authorized || status == .limited {
+            importNeedsAccess = false
+            await PhotoStore.adoptPending()
+            refreshAlbum()
+            if importOpen { importPickerPresented = true }
+        } else {
+            importNeedsAccess = true
+        }
     }
 
     func beginImport() async {
         guard preview == nil else { return }
-        let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+        let status = PhotoStore.readStatus()
+        photoRead = status
         switch status {
         case .authorized:
             importLimited = false
             importNeedsAccess = false
             importPickerPresented = true
         case .limited:
+            // Limited access still exposes PHAsset.location for the assets the person picked.
             importLimited = true
             importNeedsAccess = false
             importPickerPresented = true
-        case .notDetermined:
-            let resolved = await PHPhotoLibrary.requestAuthorization(for: .readWrite)
-            importLimited = resolved == .limited
-            if resolved == .authorized || resolved == .limited {
-                importNeedsAccess = false
-                importPickerPresented = true
-            } else {
-                importNeedsAccess = true
-                importOpen = true
-            }
-        default:
+        case .notDetermined, .denied, .restricted:
+            importLimited = false
+            importNeedsAccess = true
+            importOpen = true
+        @unknown default:
             importNeedsAccess = true
             importOpen = true
         }

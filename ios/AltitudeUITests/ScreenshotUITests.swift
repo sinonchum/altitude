@@ -253,6 +253,19 @@ final class ScreenshotUITests: XCTestCase {
             }
         }
         XCTAssertFalse(written.isEmpty, "Could not write \(name).png")
+        assertNoSystemAlert()
+    }
+
+    /// A system permission sheet means the shot does not show the screen under test. Do not tap it.
+    private func assertNoSystemAlert() {
+        let appAlert = XCUIApplication().alerts.firstMatch
+        let systemAlert = XCUIApplication(bundleIdentifier: "com.apple.springboard").alerts.firstMatch
+        if appAlert.exists {
+            XCTFail("An alert is covering the screenshot: \(appAlert.label)")
+        }
+        if systemAlert.exists {
+            XCTFail("A system alert is covering the screenshot: \(systemAlert.label)")
+        }
     }
 
     private func screenshotDirectories() -> [URL] {
