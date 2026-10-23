@@ -120,9 +120,12 @@ struct CameraScreen: View {
     }
 
     private func landscapeStage(safe: EdgeInsets) -> some View {
-        let leading = safe.leading
-        let trailing = safe.trailing
-        let vertical = max(safe.top, safe.bottom, 8)
+        // A full side inset leaves a black pillar the whole height of the phone.
+        // Keep a small gutter so the rail buttons clear the rounded corners; the
+        // viewfinder still runs to the top and bottom edges.
+        let leading = min(safe.leading, 12)
+        let trailing = min(safe.trailing, 12)
+        let vertical = max(min(safe.top, 12), min(safe.bottom, 12), 8)
         let utility = CGFloat(CameraStageMetrics.utilityRail)
         let zoom = CGFloat(CameraStageMetrics.zoomRail)
         let shutter = CGFloat(CameraStageMetrics.shutterRail)
