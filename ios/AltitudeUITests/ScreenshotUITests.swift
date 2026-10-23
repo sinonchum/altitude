@@ -59,17 +59,17 @@ final class ScreenshotUITests: XCTestCase {
         let app = launch(preview: "settings", language: language)
         XCUIDevice.shared.orientation = .portrait
         let version = element(app, "settings.version")
-        let labeled = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "1.0.0")).firstMatch
-        let appeared = version.waitForExistence(timeout: 20) || labeled.waitForExistence(timeout: 5)
+        let versionText = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "1.0.0")).firstMatch
+        let appeared = version.waitForExistence(timeout: 20) || versionText.waitForExistence(timeout: 5)
         if !appeared {
             XCTFail("settings version missing\n\(String(app.debugDescription.prefix(3500)))")
             return
         }
-        let shown = version.exists ? version.label : labeled.label
+        let shown = version.exists ? version.label : versionText.label
         XCTAssertTrue(shown.contains("1.0.0"), shown)
-        XCTAssertTrue(labeled(app, "English").waitForExistence(timeout: 8), String(app.debugDescription.prefix(2500)))
-        XCTAssertTrue(labeled(app, "中文").exists)
-        XCTAssertTrue(labeled(app, "Français").exists)
+        XCTAssertTrue(elementLabeled(app, "English").waitForExistence(timeout: 8), String(app.debugDescription.prefix(2500)))
+        XCTAssertTrue(elementLabeled(app, "中文").exists)
+        XCTAssertTrue(elementLabeled(app, "Français").exists)
         save(file)
     }
 
@@ -117,7 +117,7 @@ final class ScreenshotUITests: XCTestCase {
         app.descendants(matching: .any).matching(identifier: identifier).firstMatch
     }
 
-    private func labeled(_ app: XCUIApplication, _ label: String) -> XCUIElement {
+    private func elementLabeled(_ app: XCUIApplication, _ label: String) -> XCUIElement {
         app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", label)).firstMatch
     }
 
