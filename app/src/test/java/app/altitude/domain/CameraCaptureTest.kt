@@ -75,4 +75,36 @@ class CameraCaptureTest {
         assertEquals(FocusMeteringChoice.AF, FocusMeteringChoice.select { it == FocusMeteringChoice.AF })
         assertNull(FocusMeteringChoice.select { false })
     }
+
+    @Test
+    fun autofocusRequiresPictureModeAndFocusTravel() {
+        val picture = intArrayOf(Autofocus.MODE_AUTO, Autofocus.MODE_CONTINUOUS_PICTURE)
+        assertTrue(Autofocus.supported(picture, 0.1f, meteringSupportsAf = false))
+        assertTrue(Autofocus.supported(intArrayOf(Autofocus.MODE_CONTINUOUS_PICTURE), 10f, meteringSupportsAf = false))
+        assertFalse(Autofocus.supported(picture, 0f, meteringSupportsAf = true))
+        assertFalse(Autofocus.supported(intArrayOf(0), 5f, meteringSupportsAf = true))
+        assertFalse(Autofocus.supported(intArrayOf(3), 5f, meteringSupportsAf = true))
+        assertFalse(Autofocus.supported(picture, Float.NaN, meteringSupportsAf = true))
+        assertFalse(Autofocus.supported(intArrayOf(0), null, meteringSupportsAf = true))
+        assertFalse(Autofocus.supported(null, 0f, meteringSupportsAf = true))
+        assertTrue(Autofocus.supported(intArrayOf(Autofocus.MODE_AUTO), null, meteringSupportsAf = true))
+        assertFalse(Autofocus.supported(intArrayOf(Autofocus.MODE_AUTO), null, meteringSupportsAf = false))
+        assertTrue(Autofocus.supported(null, null, meteringSupportsAf = true))
+        assertFalse(Autofocus.supported(null, null, meteringSupportsAf = false))
+    }
+
+    @Test
+    fun tapUsesFocusAndMeteringOnlyWhenTheCameraCanFocus() {
+        val everything: (Int) -> Boolean = { true }
+        val exposureOnly: (Int) -> Boolean = { it == FocusMeteringChoice.AE }
+        assertEquals(
+            FocusMeteringChoice.AF or FocusMeteringChoice.AE,
+            Autofocus.tapFlags(autofocus = true, everything),
+        )
+        assertEquals(FocusMeteringChoice.AE, Autofocus.tapFlags(autofocus = true, exposureOnly))
+        assertEquals(FocusMeteringChoice.AE, Autofocus.tapFlags(autofocus = false, everything))
+        assertEquals(FocusMeteringChoice.AE, Autofocus.tapFlags(autofocus = false, exposureOnly))
+        assertNull(Autofocus.tapFlags(autofocus = false) { false })
+        assertNull(Autofocus.tapFlags(autofocus = true) { false })
+    }
 }

@@ -14,6 +14,7 @@ import androidx.camera.core.UseCaseGroup
 import androidx.camera.core.ViewPort
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.camera.view.ScreenFlashView
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -42,6 +43,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Cameraswitch
+import androidx.compose.material.icons.outlined.FlashOff
+import androidx.compose.material.icons.outlined.FlashOn
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -112,6 +115,7 @@ fun CameraScreen(
     onStyle: (WatermarkStyle) -> Unit,
     onAnchor: (CaptionAnchor) -> Unit,
     onFrontCamera: (Boolean) -> Unit,
+    onScreenFlash: (Boolean) -> Unit,
     onOpenSettings: () -> Unit,
     onRequestCamera: () -> Unit,
     onRequestLocation: () -> Unit,
@@ -151,6 +155,13 @@ fun CameraScreen(
         }
     }
     var boundCamera by remember { mutableStateOf<Camera?>(null) }
+    var autofocus by remember { mutableStateOf(false) }
+    val screenFlashView = remember {
+        ScreenFlashView(context).apply {
+            isClickable = false
+            isFocusable = false
+        }
+    }
     var backLens by remember { mutableStateOf<Boolean?>(null) }
     var frontLens by remember { mutableStateOf<Boolean?>(null) }
     val preferredLens = if (state.prefs.frontCamera) CameraLens.FRONT else CameraLens.BACK
@@ -208,7 +219,22 @@ fun CameraScreen(
         tween(280),
         label = "upright",
     )
-    SideEffect { imageCapture.targetRotation = captureRotation }
+    val useScreenFlash = lens == CameraLens.FRONT && state.prefs.screenFlash
+    SideEffect {
+        imageCapture.targetRotation = captureRotation
+        val window = activity?.window
+        if (window != null) screenFlashView.setScreenFlashWindow(window)
+        if (useScreenFlash) {
+            imageCapture.screenFlash = screenFlashView.screenFlash
+            imageCapture.flashMode = ImageCapture.FLASH_MODE_SCREEN
+        } else {
+            imageCapture.flashMode = ImageCapture.FLASH_MODE_OFF
+            imageCapture.screenFlash = null
+        }
+    }
+    LaunchedEffect(boundCamera) {
+        autofocus = boundCamera?.let { supportsAutofocus(it) } ?: false
+    }
     var zoomMin by remember { mutableFloatStateOf(1f) }
     var zoomMax by remember { mutableFloatStateOf(1f) }
     var zoomRatio by remember { mutableFloatStateOf(1f) }
@@ -238,6 +264,9 @@ fun CameraScreen(
     }
 
     val settingsDescription = stringResource(R.string.cd_settings)
+    val screenFlashDescription = stringResource(
+        if (state.prefs.screenFlash) R.string.cd_screen_flash_on else R.string.cd_screen_flash_off,
+    )
     val latestPhoto = state.photos.firstOrNull()
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         Column(
@@ -261,21 +290,45 @@ fun CameraScreen(
                         onMode = onMode,
                     )
                 }
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .graphicsLayer { rotationZ = upright }
-                        .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.08f))
-                        .semantics { contentDescription = settingsDescription }
-                        .clickable(onClick = onOpenSettings),
-                    contentAlignment = Alignment.Center,
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(
-                        Icons.Outlined.Settings,
-                        contentDescription = null,
-                        tint = Color(0xFFB7B7B2),
-                    )
+                    if (lens == CameraLens.FRONT) {
+                        val flashOn = state.prefs.screenFlash
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .graphicsLayer { rotationZ = upright }
+                                .clip(CircleShape)
+                                .background(if (flashOn) Color.White else Color.White.copy(alpha = 0.08f))
+                                .semantics { contentDescription = screenFlashDescription }
+                                .clickable(enabled = !busy) { onScreenFlash(!flashOn) },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                if (flashOn) Icons.Outlined.FlashOn else Icons.Outlined.FlashOff,
+                                contentDescription = null,
+                                tint = if (flashOn) Color.Black else Color(0xFFB7B7B2),
+                            )
+                        }
+                    }
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .graphicsLayer { rotationZ = upright }
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.08f))
+                            .semantics { contentDescription = settingsDescription }
+                            .clickable(onClick = onOpenSettings),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            Icons.Outlined.Settings,
+                            contentDescription = null,
+                            tint = Color(0xFFB7B7B2),
+                        )
+                    }
                 }
             }
             Box(Modifier.weight(1f).fillMaxWidth()) {
@@ -363,6 +416,7 @@ fun CameraScreen(
                             .background(Color.Black),
                     ) {
                         AndroidView(factory = { previewView }, modifier = Modifier.fillMaxSize())
+                        AndroidView(factory = { screenFlashView }, modifier = Modifier.fillMaxSize())
                         if (state.prefs.watermarkStyle == WatermarkStyle.CAPTION) {
                             AndroidView(
                                 modifier = Modifier.fillMaxSize(),
@@ -388,6 +442,7 @@ fun CameraScreen(
                         PreviewGestures(
                             previewView = previewView,
                             camera = boundCamera,
+                            autofocus = autofocus,
                             zoomRatio = zoomRatio,
                             zoomMin = zoomMin,
                             zoomMax = zoomMax,

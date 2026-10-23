@@ -1,8 +1,12 @@
 package app.altitude.ui.camera
 
+import android.hardware.camera2.CameraCharacteristics
+import androidx.camera.camera2.interop.Camera2CameraInfo
+import androidx.camera.camera2.interop.ExperimentalCamera2Interop
 import androidx.camera.core.Camera
 import androidx.camera.core.FocusMeteringAction
 import androidx.camera.core.MeteringPoint
+import androidx.camera.core.SurfaceOrientedMeteringPointFactory
 import androidx.camera.view.PreviewView
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
@@ -56,6 +60,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.altitude.R
+import app.altitude.domain.Autofocus
 import app.altitude.domain.CameraZoom
 import app.altitude.domain.FocusMeteringChoice
 import app.altitude.ui.theme.Outfit
@@ -69,6 +74,7 @@ private const val FOCUS_CANCEL_MS = 4_000L
 fun PreviewGestures(
     previewView: PreviewView,
     camera: Camera?,
+    autofocus: Boolean,
     zoomRatio: Float,
     zoomMin: Float,
     zoomMax: Float,
@@ -109,7 +115,7 @@ fun PreviewGestures(
             Modifier
                 .fillMaxSize()
                 .semantics { contentDescription = previewDescription }
-                .pointerInput(camera, zoomMin, zoomMax) {
+                .pointerInput(camera, autofocus, zoomMin, zoomMax) {
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = false)
                         down.consume()
@@ -135,7 +141,7 @@ fun PreviewGestures(
                             if (event == null) {
                                 longFired = true
                                 val active = camera
-                                if (active != null && focusMetering(previewView, active, start, !latestLocked)) {
+                                if (active != null && focusMetering(previewView, active, start, !latestLocked, autofocus)) {
                                     locked = !latestLocked
                                     focusAt = start
                                     focusToken += 1
@@ -162,7 +168,7 @@ fun PreviewGestures(
                         }
                         val active = camera
                         if (!pinch && !moved && !longFired && active != null &&
-                            focusMetering(previewView, active, start, lock = false)
+                            focusMetering(previewView, active, start, lock = false, autofocus = autofocus)
                         ) {
                             locked = false
                             focusAt = start
@@ -353,19 +359,43 @@ private fun FocusHud(
     }
 }
 
-private fun focusMetering(previewView: PreviewView, camera: Camera, offset: Offset, lock: Boolean): Boolean {
+private fun focusMetering(
+    previewView: PreviewView,
+    camera: Camera,
+    offset: Offset,
+    lock: Boolean,
+    autofocus: Boolean,
+): Boolean {
     val width = previewView.width.toFloat()
     val height = previewView.height.toFloat()
     if (width <= 1f || height <= 1f) return false
     val x = offset.x.coerceIn(0f, width - 1f)
     val y = offset.y.coerceIn(0f, height - 1f)
     val point = previewView.meteringPointFactory.createPoint(x, y)
-    val flags = FocusMeteringChoice.select { mask ->
+    val flags = Autofocus.tapFlags(autofocus) { mask ->
         val candidate = meteringAction(point, mask, lock)
         camera.cameraInfo.isFocusMeteringSupported(candidate)
     } ?: return false
     camera.cameraControl.startFocusAndMetering(meteringAction(point, flags, lock))
     return true
+}
+
+@androidx.annotation.OptIn(ExperimentalCamera2Interop::class)
+internal fun supportsAutofocus(camera: Camera): Boolean {
+    val info = camera.cameraInfo
+    val metering = runCatching {
+        val point = SurfaceOrientedMeteringPointFactory(1f, 1f).createPoint(0.5f, 0.5f)
+        info.isFocusMeteringSupported(
+            FocusMeteringAction.Builder(point, FocusMeteringAction.FLAG_AF).build(),
+        )
+    }.getOrDefault(false)
+    val (modes, distance) = runCatching {
+        val camera2 = Camera2CameraInfo.from(info)
+        val modes = camera2.getCameraCharacteristic(CameraCharacteristics.CONTROL_AF_AVAILABLE_MODES)
+        val distance = camera2.getCameraCharacteristic(CameraCharacteristics.LENS_INFO_MINIMUM_FOCUS_DISTANCE)
+        modes to distance
+    }.getOrDefault(null to null)
+    return Autofocus.supported(modes, distance, metering)
 }
 
 private fun meteringAction(
