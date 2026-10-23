@@ -610,7 +610,7 @@ private fun LensSlot(state: CameraChromeState, onToggleLens: () -> Unit) {
 }
 
 @Composable
-private fun StyleChoices(
+internal fun StyleChoices(
     selected: WatermarkStyle,
     onStyle: (WatermarkStyle) -> Unit,
     vertical: Boolean,
@@ -653,7 +653,7 @@ private fun StyleChip(label: String, selected: Boolean, fill: Boolean, onClick: 
 }
 
 @Composable
-private fun AnchorChoices(
+internal fun AnchorChoices(
     selected: CaptionAnchor,
     onAnchor: (CaptionAnchor) -> Unit,
     vertical: Boolean,

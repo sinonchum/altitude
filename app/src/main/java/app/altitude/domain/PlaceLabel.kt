@@ -220,6 +220,8 @@ private fun isLatinName(text: String): Boolean {
     return letters > 0
 }
 
+internal fun parseJsonValue(text: String): Any? = JsonReader(text).parseValue()
+
 private class JsonReader(private val text: String) {
     private var index = 0
 

@@ -15,11 +15,18 @@ import androidx.camera.core.ImageProxy
 import androidx.exifinterface.media.ExifInterface
 import app.altitude.R
 import app.altitude.domain.CaptionAnchor
+import app.altitude.domain.CapturedClock
 import app.altitude.domain.WatermarkContent
 import app.altitude.domain.WatermarkStyle
 import app.altitude.domain.formatExifDateTime
+import app.altitude.domain.formatExifOffset
+import app.altitude.domain.formatExifWallClock
+import app.altitude.domain.importDisplayName
 import java.io.ByteArrayInputStream
 import java.io.File
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import java.util.concurrent.Executors
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -57,8 +64,17 @@ class PhotoPipeline(private val context: Context) {
                 }
             }
             stamped.recycle()
-            writeExif(temp, latitude, longitude, altitudeMeters, epochMs)
-            saveToGallery(temp, displayName(epochMs))
+            writeExif(
+                temp,
+                SavedExif(
+                    latitude = latitude,
+                    longitude = longitude,
+                    altitudeMeters = altitudeMeters,
+                    clock = null,
+                    fallbackEpochMs = epochMs,
+                ),
+            )
+            saveToGallery(temp, importDisplayName(clock = null, fallbackEpochMs = epochMs, index = 0))
         } finally {
             temp.delete()
         }
@@ -139,23 +155,51 @@ class PhotoPipeline(private val context: Context) {
         }.getOrDefault(0)
     }
 
-    private fun writeExif(
-        file: File,
-        latitude: Double?,
-        longitude: Double?,
-        altitudeMeters: Double?,
-        epochMs: Long,
-    ) {
+    suspend fun saveFramedCopy(
+        upright: Bitmap,
+        content: WatermarkContent,
+        style: WatermarkStyle,
+        anchor: CaptionAnchor,
+        saved: SavedExif,
+        nameIndex: Int,
+    ): String = withContext(Dispatchers.IO) {
+        val stamped = WatermarkRenderer.render(upright, content, style, anchor)
+        val temp = File.createTempFile("altitude_", ".jpg", context.cacheDir)
+        try {
+            val compressed = temp.outputStream().use { stream ->
+                stamped.compress(Bitmap.CompressFormat.JPEG, 95, stream)
+            }
+            if (stamped !== upright) stamped.recycle()
+            if (!compressed) throw CaptureException(R.string.error_photo_compress)
+            writeExif(temp, saved)
+            saveToGallery(temp, importDisplayName(saved.clock, saved.fallbackEpochMs, nameIndex))
+        } finally {
+            temp.delete()
+        }
+    }
+
+    private fun writeExif(file: File, saved: SavedExif) {
         val exif = ExifInterface(file.absolutePath)
-        if (latitude != null && longitude != null) {
-            runCatching { exif.setLatLong(latitude, longitude) }
+        if (saved.latitude != null && saved.longitude != null) {
+            runCatching { exif.setLatLong(saved.latitude, saved.longitude) }
         }
-        if (altitudeMeters != null) {
-            runCatching { exif.setAltitude(altitudeMeters) }
+        if (saved.altitudeMeters != null) {
+            runCatching { exif.setAltitude(saved.altitudeMeters) }
         }
-        val stamp = formatExifDateTime(epochMs)
+        val clock = saved.clock
+        val stamp = if (clock != null) formatExifWallClock(clock.local) else formatExifDateTime(saved.fallbackEpochMs)
         exif.setAttribute(ExifInterface.TAG_DATETIME, stamp)
         exif.setAttribute(ExifInterface.TAG_DATETIME_ORIGINAL, stamp)
+        val offset = clock?.offset
+        if (offset != null) {
+            val text = formatExifOffset(offset)
+            exif.setAttribute(ExifInterface.TAG_OFFSET_TIME, text)
+            exif.setAttribute(ExifInterface.TAG_OFFSET_TIME_ORIGINAL, text)
+            clock.instant()?.withOffsetSameInstant(ZoneOffset.UTC)?.let { utc ->
+                exif.setAttribute(ExifInterface.TAG_GPS_DATESTAMP, utc.format(GPS_DATE))
+                exif.setAttribute(ExifInterface.TAG_GPS_TIMESTAMP, utc.format(GPS_TIME))
+            }
+        }
         exif.setAttribute(ExifInterface.TAG_SOFTWARE, "Altitude")
         exif.setAttribute(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL.toString())
         exif.saveAttributes()
@@ -190,8 +234,15 @@ class PhotoPipeline(private val context: Context) {
         return uri.toString()
     }
 
-    private fun displayName(epochMs: Long): String {
-        val stamp = formatExifDateTime(epochMs).replace(":", "").replace(" ", "_")
-        return "Altitude_$stamp.jpg"
-    }
 }
+
+data class SavedExif(
+    val latitude: Double?,
+    val longitude: Double?,
+    val altitudeMeters: Double?,
+    val clock: CapturedClock?,
+    val fallbackEpochMs: Long,
+)
+
+private val GPS_DATE: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy:MM:dd", Locale.US)
+private val GPS_TIME: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss", Locale.US)

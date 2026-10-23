@@ -1,9 +1,15 @@
 package app.altitude.ui.camera
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -34,6 +40,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -62,6 +69,7 @@ fun GalleryScreen(
     onDelete: (String) -> Boolean,
     onRefresh: () -> Unit,
     onMessage: (Int) -> Unit,
+    onImport: (List<Uri>) -> Unit,
 ) {
     val context = LocalContext.current
     val pagerState = rememberPagerState(pageCount = { uris.size.coerceAtLeast(1) })
@@ -71,6 +79,27 @@ fun GalleryScreen(
     ) { onRefresh() }
     val shareTitle = stringResource(R.string.gallery_share)
     val closeDescription = stringResource(R.string.cd_close_gallery)
+    val importDescription = stringResource(R.string.cd_import_photo)
+    val picker = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickMultipleVisualMedia(MAX_IMPORT),
+    ) { picked ->
+        if (picked.isNotEmpty()) onImport(picked)
+    }
+    val locationPermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) {
+        picker.launch(PickVisualMediaRequest(PickVisualMedia.ImageOnly))
+    }
+    val launchImport = {
+        val needsLocation = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_MEDIA_LOCATION) !=
+            PackageManager.PERMISSION_GRANTED
+        if (needsLocation) {
+            locationPermission.launch(Manifest.permission.ACCESS_MEDIA_LOCATION)
+        } else {
+            picker.launch(PickVisualMediaRequest(PickVisualMedia.ImageOnly))
+        }
+    }
 
     LaunchedEffect(uris.size) {
         if (uris.isEmpty()) return@LaunchedEffect
@@ -115,23 +144,49 @@ fun GalleryScreen(
                     fontSize = 14.sp,
                 )
                 Text(
-                    text = stringResource(R.string.gallery_title),
-                    color = Color(0xFFF3F0E8),
+                    text = stringResource(R.string.gallery_import),
+                    color = Color(0xFF141414),
                     fontFamily = Outfit,
                     fontWeight = FontWeight.SemiBold,
-                    fontSize = 16.sp,
-                    modifier = Modifier.padding(horizontal = 14.dp),
+                    fontSize = 14.sp,
+                    modifier = Modifier
+                        .padding(end = 8.dp)
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(Color(0xFFF4F1EA))
+                        .testTag("gallery_import")
+                        .semantics { contentDescription = importDescription }
+                        .clickable(onClick = launchImport)
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
                 )
             }
             Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                 if (uris.isEmpty()) {
-                    Text(
-                        text = stringResource(R.string.gallery_empty),
-                        color = Color(0xFFB7B3AA),
-                        fontSize = 15.sp,
-                        textAlign = TextAlign.Center,
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier.padding(horizontal = 28.dp),
-                    )
+                    ) {
+                        Text(
+                            text = stringResource(R.string.gallery_empty),
+                            color = Color(0xFFB7B3AA),
+                            fontFamily = Outfit,
+                            fontSize = 15.sp,
+                            textAlign = TextAlign.Center,
+                        )
+                        Text(
+                            text = stringResource(R.string.gallery_import),
+                            color = Color(0xFF141414),
+                            fontFamily = Outfit,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 15.sp,
+                            modifier = Modifier
+                                .padding(top = 18.dp)
+                                .clip(RoundedCornerShape(999.dp))
+                                .background(Color(0xFFF4F1EA))
+                                .semantics { contentDescription = importDescription }
+                                .clickable(onClick = launchImport)
+                                .padding(horizontal = 22.dp, vertical = 12.dp),
+                        )
+                    }
                 } else {
                     HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
                         AlbumPage(uris[page])
@@ -162,6 +217,7 @@ fun GalleryScreen(
                         .padding(horizontal = 16.dp, vertical = 12.dp),
                     horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
                 ) {
+                    GalleryAction(stringResource(R.string.gallery_import), importDescription, launchImport)
                     GalleryAction(stringResource(R.string.gallery_share), stringResource(R.string.cd_share_photo)) {
                         runCatching { shareAlbumPhoto(context, Uri.parse(current), shareTitle) }
                             .onFailure { onMessage(R.string.error_share_failed) }
@@ -252,3 +308,5 @@ private fun GalleryAction(label: String, description: String, onClick: () -> Uni
             .padding(horizontal = 16.dp, vertical = 10.dp),
     )
 }
+
+private const val MAX_IMPORT = 12
