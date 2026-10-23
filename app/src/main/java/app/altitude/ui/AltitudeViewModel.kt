@@ -290,6 +290,8 @@ class AltitudeViewModel(application: Application) : AndroidViewModel(application
 
     fun setCaptionAnchor(anchor: CaptionAnchor) = preferences.setCaptionAnchor(anchor)
 
+    fun setFrontCamera(front: Boolean) = preferences.setFrontCamera(front)
+
     fun completeOnboarding() = preferences.setOnboardingComplete()
 
     fun setSettingsOpen(open: Boolean) {

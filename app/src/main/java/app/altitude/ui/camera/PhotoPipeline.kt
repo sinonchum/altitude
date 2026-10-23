@@ -44,6 +44,8 @@ class PhotoPipeline(private val context: Context) {
         epochMs: Long,
     ): String = withContext(Dispatchers.IO) {
         val (bytes, rotation) = takeJpeg(imageCapture)
+        // Rotation brings the JPEG upright. The bitmap is not mirrored, so a selfie
+        // matches what other people see and the watermark text stays readable.
         val upright = decodeUpright(bytes, rotation)
         val stamped = WatermarkRenderer.render(upright, content, style, anchor)
         if (stamped !== upright) upright.recycle()

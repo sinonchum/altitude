@@ -77,6 +77,8 @@
     <string name="cd_unit_toggle">Unité : %1$s. Touchez deux fois le chiffre pour changer.</string>
     <string name="cd_theme">Thème : %1$s</string>
     <string name="cd_shutter">Déclencheur</string>
+    <string name="cd_switch_to_front">Passer à l’appareil photo avant</string>
+    <string name="cd_switch_to_back">Passer à l’appareil photo arrière</string>
 
     <string name="settings_title">Réglages</string>
     <string name="settings_section_units">Unités</string>

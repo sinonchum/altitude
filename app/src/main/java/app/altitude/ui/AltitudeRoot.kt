@@ -169,6 +169,7 @@ fun AltitudeRoot(viewModel: AltitudeViewModel) {
                         onMode = viewModel::setMode,
                         onStyle = viewModel::setWatermarkStyle,
                         onAnchor = viewModel::setCaptionAnchor,
+                        onFrontCamera = viewModel::setFrontCamera,
                         onOpenSettings = { viewModel.setSettingsOpen(true) },
                         onRequestCamera = requestCamera,
                         onRequestLocation = requestLocation,

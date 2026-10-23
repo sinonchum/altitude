@@ -11,7 +11,7 @@ Altitude shows height above sea level in large type, and writes that reading int
 - **Display.** A full-screen sea-level altitude that stays awake, including at maximum brightness, so someone else can photograph the phone. Switch meters and feet by double-tapping the number. Controls fade until you tap the screen.
 - **Camera.** The viewfinder and the saved JPEG share one watermark: altitude, coordinates, time, and a place name when one can be resolved. The picture is redrawn at capture resolution and saved to `Pictures/Altitude`, with latitude, longitude, and sea-level altitude written into EXIF when they exist. The wordmark is `ALTITUDE`, and the red dot is this app’s own mark.
 
-The interface is Simplified Chinese, English, or French, following the system language or the choice in Settings. Pinch to zoom, or use a preset when the lens supports it. Tap to focus, and press and hold to lock focus and exposure. Photos saved by the app can be reviewed, shared, and deleted in the app. Watermark styles are white, black, frame, and overlay. Display themes are Night, Black, Glacier, Saffron, and Snow.
+The interface is Simplified Chinese, English, or French, following the system language or the choice in Settings. Pinch to zoom, or use a preset when the lens supports it. Tap to focus, and press and hold to lock focus and exposure. Switch between the front and back cameras, and shoot in landscape as well as portrait. Photos saved by the app can be reviewed, shared, and deleted in the app. Watermark styles are white, black, frame, and overlay. Display themes are Night, Black, Glacier, Saffron, and Snow.
 
 There is no account, map, or track log. The product requirements are in [docs/PRD.md](docs/PRD.md).
 
@@ -40,7 +40,7 @@ python3 tools/fetch_assets.py
 ./gradlew :app:assembleDebug
 ```
 
-The debug APK is `app/build/outputs/apk/debug/Altitude-1.2.2-debug.apk`.
+The debug APK is `app/build/outputs/apk/debug/Altitude-1.3.0-debug.apk`.
 
 On an emulator, inject ellipsoid height as longitude, latitude, then meters. Near Lhasa the geoid is about −35 m, so an injected height of 3650 is shown as about 3685 m above sea level:
 
@@ -52,7 +52,7 @@ An emulator has no barometer. A phone with one labels the reading as satellite p
 
 ### Releases
 
-This tree is Android 1.2.2. Debug APKs are published as GitHub prereleases under tags `v*-debug`:
+This tree is Android 1.3.0. Debug APKs are published as GitHub prereleases under tags `v*-debug`:
 
 - [All releases](https://github.com/sinonchum/altitude/releases)
 
@@ -77,7 +77,7 @@ Altitude 用大字显示海平面海拔，并把这个读数写进照片。
 - **亮屏。** 全屏显示海平面海拔，屏幕保持常亮，也可以拉到最高亮度，方便别人用另一台手机拍下这个数字。双击数字在米和英尺之间切换。控件会淡出，点一下屏幕再出现。
 - **相机。** 取景和保存的 JPEG 使用同一套水印：海拔、经纬度、时间，以及能解析到的地名。成片按拍照分辨率重绘，保存到 `Pictures/Altitude`；有经纬度或海平面海拔时写入 EXIF。词标是 `ALTITUDE`，红点是本应用自己的记号。
 
-界面为简体中文、English 或 Français，可跟随系统，也可在设置里选择。可以双指变焦，镜头支持时也可以用预设倍数。点按对焦，长按锁定对焦和曝光。本应用保存的照片可以在应用内查看、分享和删除。水印样式有白底、黑底、画框和浮印。亮屏主题有夜色、纯黑、冰川、暖金和雪地。
+界面为简体中文、English 或 Français，可跟随系统，也可在设置里选择。可以双指变焦，镜头支持时也可以用预设倍数。点按对焦，长按锁定对焦和曝光。可在前置和后置相机之间切换，竖屏和横屏都可以拍摄。本应用保存的照片可以在应用内查看、分享和删除。水印样式有白底、黑底、画框和浮印。亮屏主题有夜色、纯黑、冰川、暖金和雪地。
 
 没有账号、地图或轨迹记录。产品需求见 [docs/PRD.md](docs/PRD.md)。
 
@@ -106,7 +106,7 @@ python3 tools/fetch_assets.py
 ./gradlew :app:assembleDebug
 ```
 
-调试 APK 位于 `app/build/outputs/apk/debug/Altitude-1.2.2-debug.apk`。
+调试 APK 位于 `app/build/outputs/apk/debug/Altitude-1.3.0-debug.apk`。
 
 在模拟器上注入椭球高，顺序是经度、纬度、米。拉萨附近大地水准面差距大约 −35 米，所以注入 3650 后，屏幕上的海平面高度大约是 3685 米：
 
@@ -118,7 +118,7 @@ adb emu geo fix 91.117 29.652 3650
 
 ### 版本与下载
 
-本树为 Android 1.2.2。调试 APK 以 GitHub 预发布的形式挂在 `v*-debug` 标签上：
+本树为 Android 1.3.0。调试 APK 以 GitHub 预发布的形式挂在 `v*-debug` 标签上：
 
 - [全部发布](https://github.com/sinonchum/altitude/releases)
 

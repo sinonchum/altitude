@@ -99,6 +99,7 @@ data class PrefsSnapshot(
     val watermarkStyle: WatermarkStyle,
     val captionAnchor: CaptionAnchor,
     val onboardingComplete: Boolean,
+    val frontCamera: Boolean,
 )
 
 data class LastKnown(

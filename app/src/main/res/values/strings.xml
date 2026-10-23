@@ -80,6 +80,8 @@
     <string name="cd_unit_toggle">Unit: %1$s. Double-tap the number to switch.</string>
     <string name="cd_theme">Theme: %1$s</string>
     <string name="cd_shutter">Shutter</string>
+    <string name="cd_switch_to_front">Switch to front camera</string>
+    <string name="cd_switch_to_back">Switch to back camera</string>
 
     <string name="settings_title">Settings</string>
     <string name="settings_section_units">Units</string>
