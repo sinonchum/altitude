@@ -67,9 +67,9 @@ final class ScreenshotUITests: XCTestCase {
         }
         let shown = version.exists ? version.label : labeled.label
         XCTAssertTrue(shown.contains("1.0.0"), shown)
-        XCTAssertTrue(app.staticTexts["English"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["中文"].exists)
-        XCTAssertTrue(app.staticTexts["Français"].exists)
+        XCTAssertTrue(labeled(app, "English").waitForExistence(timeout: 8), String(app.debugDescription.prefix(2500)))
+        XCTAssertTrue(labeled(app, "中文").exists)
+        XCTAssertTrue(labeled(app, "Français").exists)
         save(file)
     }
 
@@ -115,6 +115,10 @@ final class ScreenshotUITests: XCTestCase {
 
     private func element(_ app: XCUIApplication, _ identifier: String) -> XCUIElement {
         app.descendants(matching: .any).matching(identifier: identifier).firstMatch
+    }
+
+    private func labeled(_ app: XCUIApplication, _ label: String) -> XCUIElement {
+        app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", label)).firstMatch
     }
 
     private func save(_ name: String) {

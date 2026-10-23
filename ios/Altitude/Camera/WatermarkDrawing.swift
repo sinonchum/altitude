@@ -306,10 +306,7 @@ struct WatermarkPlate: UIViewRepresentable {
         uiView.clipsToBounds = true
         uiView.isUserInteractionEnabled = false
         uiView.backgroundColor = .clear
+        uiView.isAccessibilityElement = false
         uiView.setNeedsDisplay()
-    }
-
-    func sizeThatFits(_ proposal: ProposedViewSize, uiView: WatermarkCanvasView, context: Context) -> CGSize? {
-        CGSize(width: proposal.width ?? 0, height: proposal.height ?? 0)
     }
 }
