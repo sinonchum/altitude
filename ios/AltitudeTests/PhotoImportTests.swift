@@ -414,10 +414,11 @@ final class PhotoImportTests: XCTestCase {
         let dashed = WatermarkContent(altitude: "— —", coordinates: nil, place: nil, time: nil, wordmark: "ALTITUDE")
         let blankImage = WatermarkRenderer.render(photo: photo, content: blank, style: .plateLight, anchor: .bottom)
         let dashedImage = WatermarkRenderer.render(photo: photo, content: dashed, style: .plateLight, anchor: .bottom)
-        let blankDark = darkCount(blankImage, rect: CGRect(x: 140, y: 304, width: 50, height: 24))
-        let dashedDark = darkCount(dashedImage, rect: CGRect(x: 140, y: 304, width: 50, height: 24))
-        XCTAssertEqual(blankDark, 0)
-        XCTAssertGreaterThan(dashedDark, blankDark)
+        let band = CGRect(x: 100, y: 300, width: 100, height: 32)
+        let blankInk = inkCount(blankImage, rect: band)
+        let dashedInk = inkCount(dashedImage, rect: band)
+        XCTAssertEqual(blankInk, 0)
+        XCTAssertGreaterThan(dashedInk, blankInk)
     }
 
     private func numberList(_ body: String) -> [Double] {
@@ -443,7 +444,8 @@ final class PhotoImportTests: XCTestCase {
         return (pixel.0 + pixel.1 + pixel.2) / 3
     }
 
-    private func darkCount(_ image: UIImage, rect: CGRect) -> Int {
+    /// Counts pixels darker than the white plate. An em dash is only a few antialiased gray samples.
+    private func inkCount(_ image: UIImage, rect: CGRect) -> Int {
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1
         format.opaque = true
@@ -452,16 +454,16 @@ final class PhotoImportTests: XCTestCase {
         }
         guard let cg = cropped.cgImage, let data = cg.dataProvider?.data, let pointer = CFDataGetBytePtr(data) else { return 0 }
         let bytesPerPixel = max(cg.bitsPerPixel / 8, 1)
-        var dark = 0
+        var ink = 0
         for y in 0..<cg.height {
             for x in 0..<cg.width {
                 let offset = y * cg.bytesPerRow + x * bytesPerPixel
                 let channels = (0..<min(3, bytesPerPixel)).map { CGFloat(pointer[offset + $0]) }
                 let luma = channels.reduce(0, +) / CGFloat(max(channels.count, 1))
-                if luma < 80 { dark += 1 }
+                if luma < 230 { ink += 1 }
             }
         }
-        return dark
+        return ink
     }
 
     private func sample(_ image: UIImage, rect: CGRect) -> (CGFloat, CGFloat, CGFloat) {
