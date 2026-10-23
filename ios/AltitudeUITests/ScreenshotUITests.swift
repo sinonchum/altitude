@@ -60,14 +60,14 @@ final class ScreenshotUITests: XCTestCase {
         let app = launch(preview: "settings", language: language)
         XCUIDevice.shared.orientation = .portrait
         let version = element(app, "settings.version")
-        let versionText = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "1.1.0")).firstMatch
+        let versionText = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "1.1.1")).firstMatch
         let appeared = version.waitForExistence(timeout: 20) || versionText.waitForExistence(timeout: 5)
         if !appeared {
             XCTFail("settings version missing\n\(String(app.debugDescription.prefix(3500)))")
             return
         }
         let shown = version.exists ? version.label : versionText.label
-        XCTAssertTrue(shown.contains("1.1.0"), shown)
+        XCTAssertTrue(shown.contains("1.1.1"), shown)
         XCTAssertTrue(elementLabeled(app, "English").waitForExistence(timeout: 8), String(app.debugDescription.prefix(2500)))
         XCTAssertTrue(elementLabeled(app, "中文").exists)
         XCTAssertTrue(elementLabeled(app, "Français").exists)
@@ -204,7 +204,45 @@ final class ScreenshotUITests: XCTestCase {
         let anchor = elementLabeled(app, language == "zh" ? "顶部" : (language == "fr" ? "Haut" : "Top"))
         XCTAssertTrue(anchor.waitForExistence(timeout: 5))
         XCTAssertTrue(window.frame.insetBy(dx: -2, dy: -2).contains(anchor.frame), "anchor \(anchor.frame) window \(window.frame)")
+        assertChipsInside(app, language: language, window: window)
         save(file)
+    }
+
+    /// Style and anchor chips must be fully on screen and inside the controls column.
+    /// A horizontal scroller clips the last chip while its origin is still inside the window.
+    private func assertChipsInside(_ app: XCUIApplication, language: String, window: XCUIElement) {
+        let labels: [String]
+        switch language {
+        case "zh":
+            labels = ["白底", "黑底", "画框", "浮印", "顶部", "底部"]
+        case "fr":
+            labels = ["Fond blanc", "Fond noir", "Cadre", "Incrustation", "Haut", "Bas"]
+        default:
+            labels = ["White", "Black", "Frame", "Overlay", "Top", "Bottom"]
+        }
+        let controls = element(app, "import.controls")
+        XCTAssertTrue(controls.waitForExistence(timeout: 5), "import controls missing")
+        let windowFrame = window.frame.insetBy(dx: -2, dy: -2)
+        let controlsFrame = controls.frame.insetBy(dx: -2, dy: -2)
+        XCTAssertGreaterThan(controlsFrame.width, 40, "controls \(controls.frame)")
+        var frames: [CGRect] = []
+        for label in labels {
+            let chip = elementLabeled(app, label)
+            XCTAssertTrue(chip.waitForExistence(timeout: 5), label)
+            let frame = chip.frame
+            XCTAssertGreaterThan(frame.width, 20, label)
+            XCTAssertGreaterThan(frame.height, 16, label)
+            XCTAssertTrue(windowFrame.contains(frame), "\(label) \(frame) outside window \(window.frame)")
+            XCTAssertTrue(controlsFrame.contains(frame), "\(label) \(frame) outside controls \(controls.frame)")
+            frames.append(frame)
+        }
+        for left in frames.indices {
+            for right in frames.indices where right > left {
+                let overlap = frames[left].intersection(frames[right])
+                let piled = !overlap.isNull && overlap.width > 4 && overlap.height > 4
+                XCTAssertFalse(piled, "\(labels[left]) overlaps \(labels[right]) \(overlap)")
+            }
+        }
     }
 
     private func launch(preview: String, language: String, lens: String = "back", flash: Bool = false, fixture: String = "portrait") -> XCUIApplication {

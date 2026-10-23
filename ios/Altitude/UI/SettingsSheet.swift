@@ -109,43 +109,68 @@ struct SettingsSheet: View {
     }
 }
 
-/// Wrapping row that stays inside the safe area without measuring a specific phone.
-struct FlowLayout: Layout {
-    var spacing: CGFloat = 8
+struct FlowPlacement: Equatable {
+    var x: CGFloat
+    var y: CGFloat
+    var size: CGSize
+}
 
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let proposed = proposal.width ?? 0
-        let width = proposed > 1 ? proposed : 10_000
+/// Shared wrap used by `FlowLayout` and the chip-fit unit test.
+enum FlowArrangement {
+    /// Places `sizes` left to right. The next item starts a new row when it would pass `limit`.
+    /// An item wider than `limit` is clamped to that width so it cannot draw past the row.
+    static func arrange(_ sizes: [CGSize], limit: CGFloat, spacing: CGFloat) -> (placements: [FlowPlacement], size: CGSize) {
+        let bounded = limit > 1
+        let width = bounded ? limit : 10_000
+        var placements: [FlowPlacement] = []
         var x: CGFloat = 0
         var y: CGFloat = 0
         var rowHeight: CGFloat = 0
-        for view in subviews {
-            let size = view.sizeThatFits(.unspecified)
-            if x > 0 && x + size.width > width {
+        var used: CGFloat = 0
+        for raw in sizes {
+            var item = raw
+            if bounded, item.width > width + 0.5 {
+                item.width = width
+            }
+            if x > 0, x + item.width > width + 0.5 {
                 x = 0
                 y += rowHeight + spacing
                 rowHeight = 0
             }
-            rowHeight = max(rowHeight, size.height)
-            x += size.width + spacing
+            placements.append(FlowPlacement(x: x, y: y, size: item))
+            rowHeight = max(rowHeight, item.height)
+            used = max(used, x + item.width)
+            x += item.width + spacing
         }
-        return CGSize(width: width, height: y + rowHeight)
+        return (placements, CGSize(width: bounded ? width : used, height: y + rowHeight))
+    }
+}
+
+/// Wrapping row that stays inside the width it is offered. No phone or language table.
+struct FlowLayout: Layout {
+    var spacing: CGFloat = 8
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let sizes = subviews.map { fitted($0, limit: proposal.width ?? 0) }
+        return FlowArrangement.arrange(sizes, limit: proposal.width ?? 0, spacing: spacing).size
     }
 
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        var x = bounds.minX
-        var y = bounds.minY
-        var rowHeight: CGFloat = 0
-        for view in subviews {
-            let size = view.sizeThatFits(.unspecified)
-            if x > bounds.minX && x + size.width > bounds.maxX {
-                x = bounds.minX
-                y += rowHeight + spacing
-                rowHeight = 0
-            }
-            view.place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(size))
-            rowHeight = max(rowHeight, size.height)
-            x += size.width + spacing
+        let sizes = subviews.map { fitted($0, limit: bounds.width) }
+        let arranged = FlowArrangement.arrange(sizes, limit: bounds.width, spacing: spacing)
+        for (view, placement) in zip(subviews, arranged.placements) {
+            view.place(
+                at: CGPoint(x: bounds.minX + placement.x, y: bounds.minY + placement.y),
+                proposal: ProposedViewSize(placement.size)
+            )
         }
+    }
+
+    /// Ideal size when it fits. A wider child is measured again at the row width so its text can wrap.
+    private func fitted(_ view: LayoutSubview, limit: CGFloat) -> CGSize {
+        let ideal = view.sizeThatFits(.unspecified)
+        guard limit > 1, ideal.width > limit + 0.5 else { return ideal }
+        let constrained = view.sizeThatFits(ProposedViewSize(width: limit, height: nil))
+        return CGSize(width: min(constrained.width, limit), height: max(constrained.height, 1))
     }
 }
