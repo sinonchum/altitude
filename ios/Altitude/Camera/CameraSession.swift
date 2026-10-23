@@ -21,7 +21,7 @@ enum LensProbe {
         if modes.isEmpty {
             distance = 0
         } else {
-            let reported = device.minimumFocusDistance
+            let reported = Float(device.minimumFocusDistance)
             distance = reported > 0 ? reported : 0.1
         }
         let autofocus = Autofocus.supported(

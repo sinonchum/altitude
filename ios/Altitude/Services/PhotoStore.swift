@@ -22,7 +22,12 @@ enum PhotoStore {
     }
 
     static func save(_ data: Data) async throws -> String {
-        let granted = authorizationGranted() || await requestAccess()
+        let granted: Bool
+        if authorizationGranted() {
+            granted = true
+        } else {
+            granted = await requestAccess()
+        }
         guard granted else { throw PhotoStoreError.rejected }
         let album = try await albumCollection()
         return try await withCheckedThrowingContinuation { continuation in
