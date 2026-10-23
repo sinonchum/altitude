@@ -3,7 +3,7 @@ import XCTest
 
 final class LocaleCatalogTests: XCTestCase {
     func testTranslatableKeysMatchAcrossLocales() throws {
-        let catalog = try Self.load()
+        let catalog = try Self.loadCatalog()
         let english = catalog.strings
         let translated = ["zh-Hans", "fr"]
         for (name, entry) in english where entry.translatable && !entry.isPlural {
@@ -31,7 +31,7 @@ final class LocaleCatalogTests: XCTestCase {
     }
 
     func testWordmarkStaysLatinAndUntranslated() throws {
-        let catalog = try Self.load()
+        let catalog = try Self.loadCatalog()
         let wordmark = try XCTUnwrap(catalog.strings["wordmark"])
         XCTAssertEqual(wordmark.text(for: "en"), "ALTITUDE")
         XCTAssertEqual(wordmark.text(for: "zh-Hans"), "ALTITUDE")
@@ -43,7 +43,7 @@ final class LocaleCatalogTests: XCTestCase {
     }
 
     func testWatermarkPatternsAreLocaleAware() throws {
-        let catalog = try Self.load()
+        let catalog = try Self.loadCatalog()
         let zone = TimeZone(identifier: "Asia/Shanghai")!
         let millis = epochMillis(year: 2026, month: 10, day: 22, hour: 16, minute: 42, second: 8, zone: zone)
         XCTAssertEqual(stamp(catalog, "en", millis, zone), "2026.10.22  16:42")
@@ -89,7 +89,7 @@ final class LocaleCatalogTests: XCTestCase {
         }
     }
 
-    private static func load() throws -> Catalog {
+    private static func loadCatalog() throws -> Catalog {
         let bundle = Bundle(for: LocaleCatalogTests.self)
         let url = bundle.url(forResource: "Localizable.catalog", withExtension: "json")
             ?? bundle.url(forResource: "Localizable", withExtension: "xcstrings")
