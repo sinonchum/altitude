@@ -45,16 +45,16 @@ enum class ImportNoticeKind {
 
 /**
  * [altitude] null means the lookup is still running; that is not a missing value yet.
- * Location hidden is only when the photo has no coordinates and photo-location access
- * was not granted, because the picker may have removed GPS on Android 10+.
+ * [locationRedacted] means the bytes were not the original MediaStore item, so a
+ * missing GPS tag is the system or a gallery app removing it, not an empty file.
  */
 fun importNoticeKind(
     hasCoordinates: Boolean,
     altitude: SelectedAltitude?,
-    mediaLocationGranted: Boolean,
+    locationRedacted: Boolean,
 ): ImportNoticeKind {
     if (!hasCoordinates) {
-        return if (mediaLocationGranted) ImportNoticeKind.NO_LOCATION else ImportNoticeKind.LOCATION_HIDDEN
+        return if (locationRedacted) ImportNoticeKind.LOCATION_HIDDEN else ImportNoticeKind.NO_LOCATION
     }
     return when (altitude?.provenance) {
         AltitudeProvenance.COMPUTED -> ImportNoticeKind.COMPUTED_ALTITUDE

@@ -1,15 +1,9 @@
 package app.altitude.ui.camera
 
-import android.Manifest
-import android.content.pm.PackageManager
 import android.net.Uri
-import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia
-import androidx.core.content.ContextCompat
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -74,32 +68,14 @@ fun GalleryScreen(
     val context = LocalContext.current
     val pagerState = rememberPagerState(pageCount = { uris.size.coerceAtLeast(1) })
     var pendingDelete by remember { mutableStateOf<String?>(null) }
+    var showChooser by remember { mutableStateOf(false) }
     val deleteLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartIntentSenderForResult(),
     ) { onRefresh() }
     val shareTitle = stringResource(R.string.gallery_share)
     val closeDescription = stringResource(R.string.cd_close_gallery)
     val importDescription = stringResource(R.string.cd_import_photo)
-    val picker = rememberLauncherForActivityResult(
-        ActivityResultContracts.PickMultipleVisualMedia(MAX_IMPORT),
-    ) { picked ->
-        if (picked.isNotEmpty()) onImport(picked)
-    }
-    val locationPermission = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission(),
-    ) {
-        picker.launch(PickVisualMediaRequest(PickVisualMedia.ImageOnly))
-    }
-    val launchImport = {
-        val needsLocation = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
-            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_MEDIA_LOCATION) !=
-            PackageManager.PERMISSION_GRANTED
-        if (needsLocation) {
-            locationPermission.launch(Manifest.permission.ACCESS_MEDIA_LOCATION)
-        } else {
-            picker.launch(PickVisualMediaRequest(PickVisualMedia.ImageOnly))
-        }
-    }
+    val launchImport = { showChooser = true }
 
     LaunchedEffect(uris.size) {
         if (uris.isEmpty()) return@LaunchedEffect
@@ -232,6 +208,15 @@ fun GalleryScreen(
                 }
             }
         }
+        if (showChooser) {
+            ImportChooser(
+                onClose = { showChooser = false },
+                onPicked = { picked ->
+                    showChooser = false
+                    if (picked.isNotEmpty()) onImport(picked)
+                },
+            )
+        }
     }
 
     val doomed = pendingDelete
@@ -308,5 +293,3 @@ private fun GalleryAction(label: String, description: String, onClick: () -> Uni
             .padding(horizontal = 16.dp, vertical = 10.dp),
     )
 }
-
-private const val MAX_IMPORT = 12

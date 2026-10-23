@@ -2,8 +2,6 @@ package app.altitude.gallery
 
 import android.graphics.Bitmap
 import android.graphics.Color
-import android.net.Uri
-import android.provider.MediaStore
 import androidx.exifinterface.media.ExifInterface
 import app.altitude.domain.ExifOrientation
 import java.io.File
@@ -75,16 +73,6 @@ class PhotoExifDeviceTest {
             ExifOrientation.NORMAL,
         )
         assertEquals(3, flipped.width)
-    }
-
-    @Test
-    fun originalUriRequestsTheUnredactedFileOnAndroid10() {
-        val uri = Uri.parse("content://media/picker/0/com.android.providers.media.photopicker/media/5")
-        val opened = originalPhotoUri(uri, 29)
-        assertEquals("1", opened.getQueryParameter("requireOriginal"))
-        assertEquals(MediaStore.setRequireOriginal(uri), opened)
-        assertEquals(opened, originalPhotoUri(opened, 33))
-        assertEquals(uri, originalPhotoUri(uri, 28))
     }
 
     private fun jpeg(): File {

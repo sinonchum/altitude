@@ -1,19 +1,22 @@
 package app.altitude.ui.camera
 
-import android.Manifest
 import android.content.Context
-import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
-import androidx.core.content.ContextCompat
 import androidx.exifinterface.media.ExifInterface
 import app.altitude.R
+import app.altitude.domain.LocationExposure
+import app.altitude.domain.MediaGrant
 import app.altitude.domain.PhotoCapture
+import app.altitude.domain.PhotoUriKind
 import app.altitude.domain.SelectedAltitude
+import app.altitude.domain.locationExposure
 import app.altitude.domain.selectPhotoAltitude
 import app.altitude.gallery.PhotoFrames
-import app.altitude.gallery.openPhotoStream
+import app.altitude.gallery.currentMediaGrants
+import app.altitude.gallery.logImportRead
+import app.altitude.gallery.openImportPhoto
 import app.altitude.gallery.readPhotoCapture
 import app.altitude.location.fetchElevations
 import app.altitude.location.resolvePlaceName
@@ -25,6 +28,7 @@ import kotlinx.coroutines.withContext
 
 internal const val IMPORT_PREVIEW_EDGE = 1_600
 internal const val IMPORT_SAVE_EDGE = 12_000
+internal const val IMPORT_LIMIT = 12
 
 internal data class ImportedPage(
     val uri: Uri,
@@ -34,6 +38,7 @@ internal data class ImportedPage(
     val altitude: SelectedAltitude? = null,
     val place: String? = null,
     val errorRes: Int? = null,
+    val locationRedacted: Boolean = false,
 ) {
     val ready: Boolean
         get() = file != null && capture != null && preview != null && altitude != null && errorRes == null
@@ -42,14 +47,18 @@ internal data class ImportedPage(
 internal class ImportFiles(private val context: Context) {
     private val created = mutableListOf<File>()
 
-    suspend fun copy(uri: Uri): File = withContext(Dispatchers.IO) {
+    suspend fun copy(uri: Uri): CopiedPhoto = withContext(Dispatchers.IO) {
         val file = File.createTempFile("import_", ".jpg", context.cacheDir)
         created += file
-        val input = openPhotoStream(context.contentResolver, uri, Build.VERSION.SDK_INT)
-            ?: throw CaptureException(R.string.error_photo_decode)
-        input.use { source -> file.outputStream().use { source.copyTo(it) } }
+        val grants = currentMediaGrants(context)
+        val opened = openImportPhoto(context.contentResolver, uri, Build.VERSION.SDK_INT, grants)
+        if (opened == null) {
+            logImportRead(uri, PhotoUriKind.OTHER, upgraded = false, openedOriginal = false, grants, exif = null)
+            throw CaptureException(R.string.error_photo_decode)
+        }
+        opened.stream.use { source -> file.outputStream().use { source.copyTo(it) } }
         if (file.length() == 0L) throw CaptureException(R.string.error_photo_decode)
-        file
+        CopiedPhoto(file, opened.kind, opened.upgraded, opened.openedOriginal, grants)
     }
 
     fun deleteAll() {
@@ -58,13 +67,13 @@ internal class ImportFiles(private val context: Context) {
     }
 }
 
-internal fun mediaLocationGranted(context: Context): Boolean {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return true
-    return ContextCompat.checkSelfPermission(
-        context,
-        Manifest.permission.ACCESS_MEDIA_LOCATION,
-    ) == PackageManager.PERMISSION_GRANTED
-}
+internal data class CopiedPhoto(
+    val file: File,
+    val kind: PhotoUriKind,
+    val upgraded: Boolean,
+    val openedOriginal: Boolean,
+    val grants: Set<MediaGrant>,
+)
 
 /**
  * Copies each photo, reads its EXIF, and fills altitude and place from that photo.
@@ -123,8 +132,19 @@ internal suspend fun loadImportedPages(
 
 private suspend fun loadOne(files: ImportFiles, uri: Uri): ImportedPage {
     return try {
-        val file = files.copy(uri)
-        val capture = withContext(Dispatchers.IO) { readPhotoCapture(ExifInterface(file.absolutePath)) }
+        val copied = files.copy(uri)
+        val file = copied.file
+        val capture = withContext(Dispatchers.IO) {
+            val exif = ExifInterface(file.absolutePath)
+            logImportRead(uri, copied.kind, copied.upgraded, copied.openedOriginal, copied.grants, exif)
+            readPhotoCapture(exif)
+        }
+        val exposure = locationExposure(
+            copied.kind,
+            copied.upgraded,
+            copied.openedOriginal,
+            capture.hasCoordinates,
+        )
         val preview = withContext(Dispatchers.IO) {
             PhotoFrames.decodeUpright(file, capture.orientation, IMPORT_PREVIEW_EDGE)
         } ?: throw CaptureException(R.string.error_photo_decode)
@@ -133,7 +153,14 @@ private suspend fun loadOne(files: ImportFiles, uri: Uri): ImportedPage {
         } else {
             null
         }
-        ImportedPage(uri = uri, file = file, capture = capture, preview = preview, altitude = altitude)
+        ImportedPage(
+            uri = uri,
+            file = file,
+            capture = capture,
+            preview = preview,
+            altitude = altitude,
+            locationRedacted = exposure == LocationExposure.REDACTED,
+        )
     } catch (cancel: CancellationException) {
         throw cancel
     } catch (error: CaptureException) {
