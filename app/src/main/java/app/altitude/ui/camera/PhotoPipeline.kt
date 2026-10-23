@@ -8,10 +8,12 @@ import android.graphics.Matrix
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import androidx.annotation.StringRes
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.ImageProxy
 import androidx.exifinterface.media.ExifInterface
+import app.altitude.R
 import app.altitude.domain.CaptionAnchor
 import app.altitude.domain.WatermarkContent
 import app.altitude.domain.WatermarkStyle
@@ -25,6 +27,8 @@ import kotlin.math.max
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+
+class CaptureException(@StringRes val messageRes: Int) : IllegalStateException()
 
 class PhotoPipeline(private val context: Context) {
     private val executor = Executors.newSingleThreadExecutor()
@@ -40,6 +44,8 @@ class PhotoPipeline(private val context: Context) {
         epochMs: Long,
     ): String = withContext(Dispatchers.IO) {
         val (bytes, rotation) = takeJpeg(imageCapture)
+        // Rotation brings the JPEG upright. The bitmap is not mirrored, so a selfie
+        // matches what other people see and the watermark text stays readable.
         val upright = decodeUpright(bytes, rotation)
         val stamped = WatermarkRenderer.render(upright, content, style, anchor)
         if (stamped !== upright) upright.recycle()
@@ -47,13 +53,12 @@ class PhotoPipeline(private val context: Context) {
         try {
             temp.outputStream().use { stream ->
                 if (!stamped.compress(Bitmap.CompressFormat.JPEG, 95, stream)) {
-                    error("照片压缩失败")
+                    throw CaptureException(R.string.error_photo_compress)
                 }
             }
             stamped.recycle()
             writeExif(temp, latitude, longitude, altitudeMeters, epochMs)
             saveToGallery(temp, displayName(epochMs))
-            "已保存到相册 · Pictures/Altitude"
         } finally {
             temp.delete()
         }
@@ -93,7 +98,7 @@ class PhotoPipeline(private val context: Context) {
         var sample = 1
         while (max(bounds.outWidth, bounds.outHeight) / sample > 12_000) sample *= 2
         val decoded = decodeSampled(bytes, sample)
-            ?: error("无法解码照片")
+            ?: throw CaptureException(R.string.error_photo_decode)
         return rotate(decoded, rotation)
     }
 
@@ -156,7 +161,7 @@ class PhotoPipeline(private val context: Context) {
         exif.saveAttributes()
     }
 
-    private fun saveToGallery(file: File, displayName: String) {
+    private fun saveToGallery(file: File, displayName: String): String {
         val resolver = context.contentResolver
         val values = ContentValues().apply {
             put(MediaStore.Images.Media.DISPLAY_NAME, displayName)
@@ -174,14 +179,15 @@ class PhotoPipeline(private val context: Context) {
             }
         }
         val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
-            ?: error("相册没有收下这张照片")
+            ?: throw CaptureException(R.string.error_gallery_rejected)
         resolver.openOutputStream(uri)?.use { output ->
             file.inputStream().use { input -> input.copyTo(output) }
-        } ?: error("无法写入相册")
+        } ?: throw CaptureException(R.string.error_gallery_write)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val done = ContentValues().apply { put(MediaStore.Images.Media.IS_PENDING, 0) }
             resolver.update(uri, done, null, null)
         }
+        return uri.toString()
     }
 
     private fun displayName(epochMs: Long): String {

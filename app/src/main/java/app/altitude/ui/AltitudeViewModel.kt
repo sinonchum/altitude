@@ -3,6 +3,7 @@ package app.altitude.ui
 import android.Manifest
 import android.app.Application
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.hardware.Sensor
 import android.hardware.SensorManager
 import android.os.SystemClock
@@ -15,6 +16,8 @@ import app.altitude.domain.AltitudeUnit
 import app.altitude.domain.AppMode
 import app.altitude.domain.CaptionAnchor
 import app.altitude.domain.DisplayTheme
+import app.altitude.domain.Egm96Geoid
+import app.altitude.domain.FixClock
 import app.altitude.domain.FusionInput
 import app.altitude.domain.FusionOutput
 import app.altitude.domain.GeoidModel
@@ -22,12 +25,18 @@ import app.altitude.domain.GnssSample
 import app.altitude.domain.LastKnown
 import app.altitude.domain.PrefsSnapshot
 import app.altitude.domain.WatermarkStyle
-import app.altitude.domain.Egm96Geoid
 import app.altitude.domain.resolveMsl
+import app.altitude.gallery.AlbumIndex
+import app.altitude.i18n.AppLanguage
+import app.altitude.i18n.toLocale
 import app.altitude.location.GnssRepository
+import app.altitude.location.isGpsProviderEnabled
 import app.altitude.location.isLocationEnabled
+import app.altitude.location.locationModeChanges
 import app.altitude.location.pressureHpa
 import app.altitude.location.resolvePlaceName
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -35,6 +44,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
@@ -50,10 +60,15 @@ data class AltitudeUiState(
     val placeName: String?,
     val prefs: PrefsSnapshot,
     val mode: AppMode,
-    val saveMessage: String?,
+    val saveMessage: Int?,
+    val settingsOpen: Boolean,
     val locationGranted: Boolean,
+    val locationPrecise: Boolean,
     val cameraGranted: Boolean,
     val locationEnabled: Boolean,
+    val gpsEnabled: Boolean,
+    val photos: List<String>,
+    val galleryOpen: Boolean,
     val hasBarometer: Boolean,
     val lastKnown: LastKnown?,
     val nowMillis: Long,
@@ -69,18 +84,25 @@ class AltitudeViewModel(application: Application) : AndroidViewModel(application
     private val gps = MutableStateFlow<GnssSample?>(null)
     private val pressure = MutableStateFlow<Double?>(null)
     private val place = MutableStateFlow<String?>(null)
+    private val placeLanguage = MutableStateFlow(AppLanguage.current())
     private val geoid = MutableStateFlow<GeoidModel?>(null)
     private val mode = MutableStateFlow(AppMode.DISPLAY)
-    private val saveMessage = MutableStateFlow<String?>(null)
+    private val saveMessage = MutableStateFlow<Int?>(null)
+    private val settingsOpen = MutableStateFlow(false)
     private val locationGranted = MutableStateFlow(false)
+    private val locationPrecise = MutableStateFlow(false)
     private val cameraGranted = MutableStateFlow(false)
     private val locationEnabled = MutableStateFlow(true)
+    private val gpsEnabled = MutableStateFlow(true)
+    private val photos = MutableStateFlow<List<String>>(emptyList())
+    private val galleryOpen = MutableStateFlow(false)
     private val hasBarometer = MutableStateFlow(false)
     private val lastKnown = MutableStateFlow(preferences.readLastKnown())
     private val nowMillis = MutableStateFlow(System.currentTimeMillis())
     private val foreground = MutableStateFlow(false)
 
     private var gnssJob: Job? = null
+    private var gnssKey: String? = null
     private var lastPersistElapsed = 0L
 
     val uiState: StateFlow<AltitudeUiState>
@@ -98,11 +120,23 @@ class AltitudeViewModel(application: Application) : AndroidViewModel(application
             pressureHpa(application).collect { pressure.value = it }
         }
         viewModelScope.launch {
-            gps.filterNotNull()
-                .map { cell(it.latitude) to cell(it.longitude) }
+            locationModeChanges(application).collect { refreshSystemState() }
+        }
+        refreshAlbum()
+        viewModelScope.launch {
+            combine(
+                gps.filterNotNull().map { cell(it.latitude) to cell(it.longitude) },
+                placeLanguage,
+            ) { cell, language -> cell to language }
                 .distinctUntilChanged()
-                .collect { (latCell, lonCell) ->
-                    val name = resolvePlaceName(application, latCell * CELL, lonCell * CELL)
+                .collectLatest { (cell, language) ->
+                    val (latCell, lonCell) = cell
+                    val name = resolvePlaceName(
+                        application,
+                        latCell * CELL,
+                        lonCell * CELL,
+                        language.toLocale(),
+                    )
                     if (!name.isNullOrBlank()) place.value = name
                 }
         }
@@ -116,35 +150,58 @@ class AltitudeViewModel(application: Application) : AndroidViewModel(application
         val sensors = combine(reading, gps, place, nowMillis, geoid) { current, sample, placeName, now, model ->
             SensorSlice(current, sample, placeName, now, model != null)
         }
+        val access = combine(locationGranted, cameraGranted, settingsOpen) { location, camera, settings ->
+            AccessSlice(location, camera, settings)
+        }
         val chrome = combine(
             preferences.updates(),
             mode,
             saveMessage,
-            locationGranted,
-            cameraGranted,
-        ) { prefs, currentMode, message, location, camera ->
-            ChromeSlice(prefs, currentMode, message, location, camera)
+            access,
+        ) { prefs, currentMode, message, accessSlice ->
+            ChromeSlice(
+                prefs,
+                currentMode,
+                message,
+                accessSlice.locationGranted,
+                accessSlice.cameraGranted,
+                accessSlice.settingsOpen,
+            )
         }
-        val device = combine(locationEnabled, hasBarometer, lastKnown) { enabled, baro, known ->
-            Triple(enabled, baro, known)
+        val placeSlice = combine(locationEnabled, hasBarometer, lastKnown) { enabled, baro, known ->
+            PlaceSlice(enabled, baro, known)
+        }
+        val accessExtra = combine(locationPrecise, gpsEnabled, galleryOpen) { precise, gps, gallery ->
+            ExtraSlice(precise, gps, gallery)
+        }
+        val device = combine(placeSlice, accessExtra, photos) { place, extra, shots ->
+            DeviceSlice(place, extra, shots)
         }
         uiState = combine(sensors, chrome, device) { sensor, chromeSlice, deviceSlice ->
             val wall = sensor.now
             val sample = sensor.sample
-            val coordinatesFresh = sample != null && (sample.timeMs <= 0L || wall - sample.timeMs in 0..30_000)
+            val coordinatesFresh = sample != null && FixClock.accept(
+                FixClock.ageMillis(sample.elapsedRealtimeMs, sample.timeMs, SystemClock.elapsedRealtime(), wall),
+                FixClock.COORDINATE_WINDOW_MS,
+            )
             AltitudeUiState(
                 reading = sensor.reading,
-                latitude = if (coordinatesFresh) sample?.latitude else null,
-                longitude = if (coordinatesFresh) sample?.longitude else null,
+                latitude = if (coordinatesFresh) sample.latitude else null,
+                longitude = if (coordinatesFresh) sample.longitude else null,
                 placeName = sensor.place,
                 prefs = chromeSlice.prefs,
                 mode = chromeSlice.mode,
                 saveMessage = chromeSlice.saveMessage,
+                settingsOpen = chromeSlice.settingsOpen,
                 locationGranted = chromeSlice.locationGranted,
+                locationPrecise = deviceSlice.extra.locationPrecise,
                 cameraGranted = chromeSlice.cameraGranted,
-                locationEnabled = deviceSlice.first,
-                hasBarometer = deviceSlice.second,
-                lastKnown = deviceSlice.third,
+                locationEnabled = deviceSlice.place.locationEnabled,
+                gpsEnabled = deviceSlice.extra.gpsEnabled,
+                photos = deviceSlice.photos,
+                galleryOpen = deviceSlice.extra.galleryOpen,
+                hasBarometer = deviceSlice.place.hasBarometer,
+                lastKnown = deviceSlice.place.lastKnown,
                 nowMillis = wall,
                 geoidReady = sensor.geoidReady,
             )
@@ -155,20 +212,53 @@ class AltitudeViewModel(application: Application) : AndroidViewModel(application
         foreground.value = isForeground
         if (isForeground) {
             refreshSystemState()
+            refreshAlbum()
             ensureGnss()
         } else {
             gnssJob?.cancel()
             gnssJob = null
+            gnssKey = null
         }
     }
 
     fun refreshSystemState() {
         val app = getApplication<Application>()
-        locationGranted.value = hasPermission(Manifest.permission.ACCESS_FINE_LOCATION) ||
-            hasPermission(Manifest.permission.ACCESS_COARSE_LOCATION)
+        val precise = hasPermission(Manifest.permission.ACCESS_FINE_LOCATION)
+        locationPrecise.value = precise
+        locationGranted.value = precise || hasPermission(Manifest.permission.ACCESS_COARSE_LOCATION)
         cameraGranted.value = hasPermission(Manifest.permission.CAMERA)
         locationEnabled.value = isLocationEnabled(app)
+        gpsEnabled.value = isGpsProviderEnabled(app)
         if (foreground.value) ensureGnss()
+    }
+
+    fun refreshAlbum() {
+        reloadAlbum(retain = null)
+    }
+
+    private fun reloadAlbum(retain: String?) {
+        val app = getApplication<Application>()
+        viewModelScope.launch {
+            val listed = withContext(Dispatchers.IO) {
+                runCatching { AlbumIndex(app).listUris() }.getOrNull()
+            } ?: return@launch
+            photos.value = if (retain != null && retain !in listed) listOf(retain) + listed else listed
+        }
+    }
+
+    fun setGalleryOpen(open: Boolean) {
+        galleryOpen.value = open
+        if (open) refreshAlbum()
+    }
+
+    fun deletePhoto(uri: String): Boolean {
+        val app = getApplication<Application>()
+        val removed = AlbumIndex(app).delete(Uri.parse(uri))
+        if (removed) {
+            photos.value = photos.value.filterNot { it == uri }
+            if (photos.value.isEmpty()) galleryOpen.value = false
+        }
+        return removed
     }
 
     fun setMode(value: AppMode) {
@@ -200,21 +290,50 @@ class AltitudeViewModel(application: Application) : AndroidViewModel(application
 
     fun setCaptionAnchor(anchor: CaptionAnchor) = preferences.setCaptionAnchor(anchor)
 
+    fun setFrontCamera(front: Boolean) = preferences.setFrontCamera(front)
+
+    fun setScreenFlash(enabled: Boolean) = preferences.setScreenFlash(enabled)
+
     fun completeOnboarding() = preferences.setOnboardingComplete()
 
-    fun reportSave(message: String) {
-        saveMessage.value = message
+    fun setSettingsOpen(open: Boolean) {
+        settingsOpen.value = open
+    }
+
+    fun onAppLanguageChanged(language: AppLanguage) {
+        placeLanguage.value = language
+    }
+
+    fun reportSave(messageRes: Int) {
+        saveMessage.value = messageRes
         viewModelScope.launch {
             delay(2_800)
-            if (saveMessage.value == message) saveMessage.value = null
+            if (saveMessage.value == messageRes) saveMessage.value = null
+        }
+    }
+
+    fun onCaptureFinished(messageRes: Int, uri: String?) {
+        reportSave(messageRes)
+        if (uri != null) {
+            photos.value = listOf(uri) + photos.value.filterNot { it == uri }
+            reloadAlbum(retain = uri)
         }
     }
 
     private fun ensureGnss() {
-        if (!locationGranted.value || !foreground.value) return
-        if (gnssJob?.isActive == true) return
+        if (!foreground.value || !locationGranted.value) {
+            gnssJob?.cancel()
+            gnssJob = null
+            gnssKey = null
+            return
+        }
+        val key = "${locationPrecise.value}:${locationEnabled.value}:${gpsEnabled.value}"
+        if (gnssJob?.isActive == true && gnssKey == key) return
+        gnssJob?.cancel()
+        gnssKey = key
+        val precise = locationPrecise.value
         gnssJob = viewModelScope.launch {
-            gnss.fixes().catch { }.collect { gps.value = it }
+            gnss.fixes(precise).catch { }.collect { gps.value = it }
         }
     }
 
@@ -224,12 +343,15 @@ class AltitudeViewModel(application: Application) : AndroidViewModel(application
         nowMillis.value = wall
         val sample = gps.value
         val msl = sample?.let { resolveMsl(it, geoid.value) }
-        val fresh = sample != null && msl != null && (sample.timeMs <= 0L || wall - sample.timeMs in 0..3_000)
+        val fresh = sample != null && msl != null && FixClock.accept(
+            FixClock.ageMillis(sample.elapsedRealtimeMs, sample.timeMs, elapsed, wall),
+            FixClock.FUSION_WINDOW_MS,
+        )
         val output = fusion.update(
             FusionInput(
                 timestampMs = elapsed,
                 gpsMslMeters = if (fresh) msl else null,
-                gpsVerticalAccuracyMeters = if (fresh) sample?.verticalAccuracyMeters else null,
+                gpsVerticalAccuracyMeters = if (fresh) sample.verticalAccuracyMeters else null,
                 pressureHpa = pressure.value,
             ),
         )
@@ -257,9 +379,14 @@ class AltitudeViewModel(application: Application) : AndroidViewModel(application
             prefs = prefs,
             mode = AppMode.DISPLAY,
             saveMessage = null,
+            settingsOpen = false,
             locationGranted = false,
+            locationPrecise = false,
             cameraGranted = false,
             locationEnabled = true,
+            gpsEnabled = true,
+            photos = emptyList(),
+            galleryOpen = false,
             hasBarometer = false,
             lastKnown = preferences.readLastKnown(),
             nowMillis = System.currentTimeMillis(),
@@ -275,12 +402,37 @@ class AltitudeViewModel(application: Application) : AndroidViewModel(application
         val geoidReady: Boolean,
     )
 
+    private data class AccessSlice(
+        val locationGranted: Boolean,
+        val cameraGranted: Boolean,
+        val settingsOpen: Boolean,
+    )
+
     private data class ChromeSlice(
         val prefs: PrefsSnapshot,
         val mode: AppMode,
-        val saveMessage: String?,
+        val saveMessage: Int?,
         val locationGranted: Boolean,
         val cameraGranted: Boolean,
+        val settingsOpen: Boolean,
+    )
+
+    private data class PlaceSlice(
+        val locationEnabled: Boolean,
+        val hasBarometer: Boolean,
+        val lastKnown: LastKnown?,
+    )
+
+    private data class ExtraSlice(
+        val locationPrecise: Boolean,
+        val gpsEnabled: Boolean,
+        val galleryOpen: Boolean,
+    )
+
+    private data class DeviceSlice(
+        val place: PlaceSlice,
+        val extra: ExtraSlice,
+        val photos: List<String>,
     )
 
     private companion object {

@@ -8,6 +8,7 @@ import org.junit.Test
 import java.io.File
 import java.time.ZoneId
 import java.time.ZonedDateTime
+import java.util.Locale
 
 class PressureAltitudeTest {
     @Test
@@ -142,6 +143,33 @@ class FormatTest {
         assertEquals("— —", waiting.altitude)
         assertNull(waiting.coordinates)
     }
+
+    @Test
+    fun numbersFollowTheLocale() {
+        assertEquals("5,210", formatInteger(5210, Locale.US))
+        assertEquals("-12", formatInteger(-12, Locale.US))
+        assertEquals("1,000,000", formatInteger(1_000_000, Locale.US))
+        assertEquals("29.65200", formatDecimal(29.652, 5, Locale.US))
+
+        val frenchGrouped = formatInteger(5210, Locale.FRANCE)
+        assertTrue(frenchGrouped.startsWith("5"))
+        assertTrue(frenchGrouped.endsWith("210"))
+        val separator = frenchGrouped.removePrefix("5").removeSuffix("210")
+        assertEquals(1, separator.length)
+        assertTrue(Character.isSpaceChar(separator[0]))
+        assertFalse(frenchGrouped.contains(','))
+        assertFalse(frenchGrouped.contains('.'))
+
+        val frenchDecimal = formatDecimal(29.652, 5, Locale.FRANCE)
+        assertEquals("29,65200", frenchDecimal)
+
+        assertEquals("5,210", formatInteger(5210, Locale.SIMPLIFIED_CHINESE))
+        assertEquals("29.65200", formatDecimal(29.652, 5, Locale.SIMPLIFIED_CHINESE))
+
+        val frenchReading = formatAltitudeReading(5210.0, AltitudeUnit.METERS, Locale.FRANCE)
+        assertTrue(frenchReading.endsWith(" m"))
+        assertTrue(Character.isSpaceChar(frenchReading[1]))
+    }
 }
 
 class WatermarkMetricsTest {
@@ -177,6 +205,30 @@ class WatermarkMetricsTest {
         assertTrue(fit.outerHeight <= 1600.5f)
         assertEquals(0.75, (fit.photoWidth / fit.photoHeight).toDouble(), 0.001)
         assertEquals(162.0, (fit.bottom / fit.photoWidth * 1000.0), 1.0)
+    }
+
+    @Test
+    fun landscapePlateUsesTheShorterEdge() {
+        val size = WatermarkMetrics.outputSize(4000, 3000, WatermarkStyle.PLATE_LIGHT, false)
+        assertEquals(4000, size.width)
+        assertEquals(3486, size.height)
+        val portrait = WatermarkMetrics.outputSize(3000, 4000, WatermarkStyle.PLATE_LIGHT, false)
+        assertEquals(size.height - 3000, portrait.height - 4000)
+        val mount = WatermarkMetrics.outputSize(4000, 3000, WatermarkStyle.MOUNT, false)
+        assertEquals(4276, mount.width)
+        assertEquals(3738, mount.height)
+        val fit = WatermarkMetrics.fitFrame(
+            availWidth = 1600f,
+            availHeight = 900f,
+            photoAspect = 4f / 3f,
+            style = WatermarkStyle.PLATE_LIGHT,
+            hasPlace = false,
+        )
+        assertTrue(fit.outerWidth <= 1600.5f)
+        assertTrue(fit.outerHeight <= 900.5f)
+        assertEquals(4.0 / 3.0, (fit.photoWidth / fit.photoHeight).toDouble(), 0.001)
+        val shortEdge = minOf(fit.photoWidth, fit.photoHeight)
+        assertEquals(162.0, (fit.bottom / shortEdge * 1000.0), 1.0)
     }
 }
 

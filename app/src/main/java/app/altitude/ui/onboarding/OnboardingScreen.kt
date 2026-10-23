@@ -13,27 +13,38 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.altitude.R
+import app.altitude.domain.AltitudeUnit
+import app.altitude.i18n.rememberLocalFormat
+import app.altitude.i18n.symbolRes
 import app.altitude.ui.theme.Outfit
 
 private val Ink = Color(0xFF090A0C)
@@ -48,9 +59,20 @@ fun OnboardingScreen(
     onFinish: () -> Unit,
 ) {
     var step by rememberSaveable { mutableIntStateOf(0) }
-    Box(Modifier.fillMaxSize().background(Ink).padding(horizontal = 28.dp, vertical = 32.dp)) {
+    val format = rememberLocalFormat()
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(Ink)
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+            .padding(horizontal = 28.dp, vertical = 16.dp),
+    ) {
         Column(Modifier.fillMaxSize()) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            val stepDescription = stringResource(R.string.cd_onboarding_step, step + 1, 3)
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.semantics { contentDescription = stepDescription },
+            ) {
                 repeat(3) { index ->
                     Box(
                         Modifier
@@ -72,44 +94,52 @@ fun OnboardingScreen(
                 label = "onboarding",
                 modifier = Modifier.weight(1f),
             ) { page ->
-                when (page) {
-                    0 -> Page(
-                        kicker = "亮屏",
-                        title = "举到镜头前面",
-                        body = "在山口、垭口、营地把屏幕亮着。海拔用大字停在画面中央，朋友用另一台手机拍你，数字依然清楚。",
-                        showSample = true,
-                    )
-                    1 -> Page(
-                        kicker = "海平面",
-                        title = "不是椭球高度",
-                        body = "卫星给出的是地球椭球上的高度。地图和路牌上的海拔相对海平面。手机会换算过来；有气压计时，读数更稳，反应也更快。不需要网络。",
-                        showSample = false,
-                    )
-                    else -> Page(
-                        kicker = "成片",
-                        title = "写进照片，而不是贴在截图上",
-                        body = "拍照时，海拔、经纬度和时间按底栏水印画进成片，和取景时看到的是同一套排版，并写入照片的位置信息。相册目录是 Pictures/Altitude。",
-                        showSample = false,
-                    )
+                Box(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                    when (page) {
+                        0 -> Page(
+                            kicker = stringResource(R.string.onboarding_display_kicker),
+                            title = stringResource(R.string.onboarding_display_title),
+                            body = stringResource(R.string.onboarding_display_body),
+                            sampleNumber = format.altitudeNumber(5_210.0, AltitudeUnit.METERS),
+                            sampleCaption = stringResource(
+                                R.string.onboarding_sample_caption,
+                                stringResource(AltitudeUnit.METERS.symbolRes()),
+                            ),
+                        )
+                        1 -> Page(
+                            kicker = stringResource(R.string.onboarding_msl_kicker),
+                            title = stringResource(R.string.onboarding_msl_title),
+                            body = stringResource(R.string.onboarding_msl_body),
+                            sampleNumber = null,
+                            sampleCaption = null,
+                        )
+                        else -> Page(
+                            kicker = stringResource(R.string.onboarding_photo_kicker),
+                            title = stringResource(R.string.onboarding_photo_title),
+                            body = stringResource(R.string.onboarding_photo_body),
+                            sampleNumber = null,
+                            sampleCaption = null,
+                        )
+                    }
                 }
             }
             when (step) {
-                0 -> PrimaryButton("继续") { step = 1 }
+                0 -> PrimaryButton(stringResource(R.string.onboarding_continue)) { step = 1 }
                 1 -> {
-                    PrimaryButton("允许定位") {
+                    PrimaryButton(stringResource(R.string.onboarding_allow_location)) {
                         onAllowLocation()
                         step = 2
                     }
                     Spacer(Modifier.height(10.dp))
-                    QuietButton("稍后") { step = 2 }
+                    QuietButton(stringResource(R.string.onboarding_later)) { step = 2 }
                 }
                 else -> {
-                    PrimaryButton("允许相机") {
+                    PrimaryButton(stringResource(R.string.onboarding_allow_camera)) {
                         onAllowCamera()
                         onFinish()
                     }
                     Spacer(Modifier.height(10.dp))
-                    QuietButton("先只用亮屏") { onFinish() }
+                    QuietButton(stringResource(R.string.onboarding_display_only)) { onFinish() }
                 }
             }
         }
@@ -117,17 +147,32 @@ fun OnboardingScreen(
 }
 
 @Composable
-private fun Page(kicker: String, title: String, body: String, showSample: Boolean) {
+private fun Page(
+    kicker: String,
+    title: String,
+    body: String,
+    sampleNumber: String?,
+    sampleCaption: String?,
+) {
     Column(Modifier.fillMaxWidth()) {
-        Text(kicker, color = Red, fontFamily = Outfit, fontWeight = FontWeight.Medium, fontSize = 13.sp, letterSpacing = 2.sp)
+        Text(kicker, color = Red, fontFamily = Outfit, fontWeight = FontWeight.Medium, fontSize = 13.sp, letterSpacing = 1.sp)
         Spacer(Modifier.height(12.dp))
-        Text(title, color = Paper, fontFamily = Outfit, fontWeight = FontWeight.SemiBold, fontSize = 34.sp, lineHeight = 40.sp)
+        Text(title, color = Paper, fontFamily = Outfit, fontWeight = FontWeight.SemiBold, fontSize = 32.sp, lineHeight = 38.sp)
         Spacer(Modifier.height(16.dp))
         Text(body, color = Mute, fontSize = 16.sp, lineHeight = 24.sp)
-        if (showSample) {
+        if (sampleNumber != null && sampleCaption != null) {
             Spacer(Modifier.height(36.dp))
-            Text("5,210", color = Paper, fontFamily = Outfit, fontWeight = FontWeight.ExtraBold, fontSize = 84.sp, letterSpacing = (-2).sp)
-            Text("米  ·  海平面", color = Mute, fontFamily = Outfit, fontWeight = FontWeight.Medium, fontSize = 14.sp, letterSpacing = 1.sp)
+            Text(
+                sampleNumber,
+                color = Paper,
+                fontFamily = Outfit,
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = 84.sp,
+                letterSpacing = (-2).sp,
+                maxLines = 1,
+                softWrap = false,
+            )
+            Text(sampleCaption, color = Mute, fontFamily = Outfit, fontWeight = FontWeight.Medium, fontSize = 14.sp, letterSpacing = 0.4.sp)
         }
     }
 }
@@ -146,7 +191,7 @@ private fun PrimaryButton(label: String, onClick: () -> Unit) {
             .clip(RoundedCornerShape(999.dp))
             .background(Paper)
             .clickable(onClick = onClick)
-            .padding(vertical = 16.dp),
+            .padding(vertical = 16.dp, horizontal = 16.dp),
     )
 }
 
@@ -162,6 +207,6 @@ private fun QuietButton(label: String, onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(vertical = 12.dp),
+            .padding(vertical = 12.dp, horizontal = 12.dp),
     )
 }

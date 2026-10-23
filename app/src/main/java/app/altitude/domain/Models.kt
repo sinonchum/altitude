@@ -55,6 +55,7 @@ data class GnssSample(
     val horizontalAccuracyMeters: Double?,
     val verticalAccuracyMeters: Double?,
     val timeMs: Long,
+    val elapsedRealtimeMs: Long = 0L,
 )
 
 data class FusionInput(
@@ -98,6 +99,8 @@ data class PrefsSnapshot(
     val watermarkStyle: WatermarkStyle,
     val captionAnchor: CaptionAnchor,
     val onboardingComplete: Boolean,
+    val frontCamera: Boolean,
+    val screenFlash: Boolean,
 )
 
 data class LastKnown(
@@ -112,4 +115,5 @@ data class WatermarkContent(
     val coordinates: String?,
     val place: String?,
     val time: String?,
+    val wordmark: String = "ALTITUDE",
 )

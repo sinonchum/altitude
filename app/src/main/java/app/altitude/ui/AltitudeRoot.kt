@@ -3,7 +3,11 @@ package app.altitude.ui
 import android.Manifest
 import android.app.Activity
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
 import android.provider.Settings
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import android.view.WindowManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -19,9 +23,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -29,17 +34,19 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import app.altitude.R
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -57,7 +64,7 @@ fun AltitudeRoot(viewModel: AltitudeViewModel) {
     val context = LocalContext.current
     val view = LocalView.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    var settingsOpen by remember { mutableStateOf(false) }
+    val settingsOpen = state.settingsOpen
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -78,9 +85,34 @@ fun AltitudeRoot(viewModel: AltitudeViewModel) {
         ActivityResultContracts.RequestPermission(),
     ) { viewModel.refreshSystemState() }
     val requestLocation = {
-        locationLauncher.launch(
-            arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
-        )
+        val activity = context as Activity
+        val fineGranted = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_FINE_LOCATION,
+        ) == PackageManager.PERMISSION_GRANTED
+        val coarseGranted = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_COARSE_LOCATION,
+        ) == PackageManager.PERMISSION_GRANTED
+        val preciseBlocked = coarseGranted && !fineGranted &&
+            !ActivityCompat.shouldShowRequestPermissionRationale(
+                activity,
+                Manifest.permission.ACCESS_FINE_LOCATION,
+            )
+        if (preciseBlocked) {
+            context.startActivity(
+                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                    data = Uri.fromParts("package", context.packageName, null)
+                },
+            )
+        } else {
+            locationLauncher.launch(
+                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
+            )
+        }
+    }
+    val openLocationSettings = {
+        context.startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
     }
     val requestCamera = { cameraLauncher.launch(Manifest.permission.CAMERA) }
 
@@ -127,11 +159,9 @@ fun AltitudeRoot(viewModel: AltitudeViewModel) {
                         onMode = viewModel::setMode,
                         onToggleUnit = viewModel::toggleUnit,
                         onToggleBrightness = { viewModel.setMaxBrightness(!state.prefs.maxBrightness) },
-                        onOpenSettings = { settingsOpen = true },
+                        onOpenSettings = { viewModel.setSettingsOpen(true) },
                         onRequestLocation = requestLocation,
-                        onOpenLocationSettings = {
-                            context.startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
-                        },
+                        onOpenLocationSettings = openLocationSettings,
                         settingsOpen = settingsOpen,
                     )
                     AppMode.CAMERA -> CameraScreen(
@@ -139,14 +169,23 @@ fun AltitudeRoot(viewModel: AltitudeViewModel) {
                         onMode = viewModel::setMode,
                         onStyle = viewModel::setWatermarkStyle,
                         onAnchor = viewModel::setCaptionAnchor,
-                        onOpenSettings = { settingsOpen = true },
+                        onFrontCamera = viewModel::setFrontCamera,
+                        onScreenFlash = viewModel::setScreenFlash,
+                        onOpenSettings = { viewModel.setSettingsOpen(true) },
                         onRequestCamera = requestCamera,
-                        onSaved = viewModel::reportSave,
+                        onRequestLocation = requestLocation,
+                        onOpenLocationSettings = openLocationSettings,
+                        onOpenGallery = { viewModel.setGalleryOpen(true) },
+                        onCloseGallery = { viewModel.setGalleryOpen(false) },
+                        onDeletePhoto = viewModel::deletePhoto,
+                        onRefreshAlbum = viewModel::refreshAlbum,
+                        onSaved = viewModel::onCaptureFinished,
                     )
                 }
             }
         }
 
+        val closeSettings = stringResource(R.string.cd_close_settings)
         AnimatedVisibility(
             visible = settingsOpen && state.prefs.onboardingComplete,
             enter = fadeIn() + slideInVertically { it / 3 },
@@ -156,13 +195,18 @@ fun AltitudeRoot(viewModel: AltitudeViewModel) {
                 Modifier
                     .fillMaxSize()
                     .background(Color.Black.copy(alpha = 0.46f))
-                    .clickable { settingsOpen = false },
+                    .clickable { viewModel.setSettingsOpen(false) }
+                    .semantics { contentDescription = closeSettings },
             ) {
                 Box(
                     Modifier
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
-                        .windowInsetsPadding(WindowInsets.safeDrawing)
+                        .windowInsetsPadding(
+                            WindowInsets.safeDrawing.only(
+                                WindowInsetsSides.Top + WindowInsetsSides.Horizontal,
+                            ),
+                        )
                         .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
                         .background(Color(0xFF141311))
                         .clickable(
@@ -170,7 +214,7 @@ fun AltitudeRoot(viewModel: AltitudeViewModel) {
                             indication = null,
                             onClick = {},
                         )
-                        .navigationBarsPadding()
+                        .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
                         .padding(top = 18.dp),
                 ) {
                     SettingsSheet(state.prefs, viewModel)

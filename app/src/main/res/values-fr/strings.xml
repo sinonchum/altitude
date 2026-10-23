@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:locale="fr">
+    <string name="altitude_unavailable">— —</string>
+    <string name="altitude_placeholder">—</string>
+    <string name="caption_placeholder">\u00a0</string>
+
+    <string name="settings_language">Langue</string>
+    <string name="language_system">Système</string>
+
+    <string name="onboarding_display_kicker">Écran</string>
+    <string name="onboarding_display_title">Tenez-le face à l’objectif</string>
+    <string name="onboarding_display_body">Au col, sur une crête ou au camp, laissez l’écran allumé. L’altitude s’affiche en grand : un ami peut vous photographier et le chiffre reste lisible.</string>
+    <string name="onboarding_msl_kicker">Niveau de la mer</string>
+    <string name="onboarding_msl_title">Pas l’altitude ellipsoïdale</string>
+    <string name="onboarding_msl_body">Les satellites mesurent la hauteur au-dessus de l’ellipsoïde terrestre. Les cartes et les panneaux indiquent l’altitude par rapport à la mer. Le téléphone fait la conversion. Avec un baromètre, le chiffre est plus stable et réagit plus vite. Aucun réseau n’est nécessaire.</string>
+    <string name="onboarding_photo_kicker">Le tirage</string>
+    <string name="onboarding_photo_title">Inscrit dans la photo, pas collé sur une capture</string>
+    <string name="onboarding_photo_body">À la prise de vue, l’altitude, les coordonnées et l’heure sont dessinées dans l’image, avec la même mise en page que le viseur, et enregistrées dans les données de localisation. L’album est Pictures/Altitude.</string>
+    <string name="onboarding_sample_caption">%1$s  ·  niveau de la mer</string>
+    <string name="onboarding_continue">Continuer</string>
+    <string name="onboarding_allow_location">Autoriser la position</string>
+    <string name="onboarding_later">Plus tard</string>
+    <string name="onboarding_allow_camera">Autoriser l’appareil photo</string>
+    <string name="onboarding_display_only">Garder seulement l’écran</string>
+    <string name="cd_onboarding_step">Étape %1$d sur %2$d</string>
+
+    <string name="unit_level_caption">%1$s  ·  niveau de la mer</string>
+    <string name="unit_pressure_caption">Pression  ·  pas encore calée sur les satellites</string>
+    <string name="unit_meters_name">Mètres</string>
+    <string name="unit_feet_name">Pieds</string>
+    <string name="unit_meters_symbol">m</string>
+    <string name="unit_feet_symbol">pi</string>
+    <string name="mode_display">Écran</string>
+    <string name="mode_camera">Photo</string>
+
+    <string name="prompt_location_permission_title">La position n’est pas autorisée</string>
+    <string name="prompt_location_permission_body">L’altitude vient des satellites. Une fois la position autorisée, le chiffre vous suit.</string>
+    <string name="prompt_location_permission_action">Autoriser la position</string>
+    <string name="prompt_location_disabled_title">La localisation est désactivée</string>
+    <string name="prompt_location_disabled_body">Activez les services de localisation pour recevoir l’altitude satellite.</string>
+    <string name="prompt_location_disabled_action">Ouvrir les réglages</string>
+
+    <string name="searching_satellites">Recherche des satellites</string>
+    <string name="preparing_geoid">Préparation du modèle d’altitude</string>
+    <string name="searching_hint">Mettez-vous à découvert et laissez du ciel à l’antenne. Le premier fix peut prendre une minute.</string>
+    <string name="last_known">Dernière mesure %1$s · %2$s</string>
+
+    <string name="source_gps">Satellite</string>
+    <string name="source_fused">Satellite + baromètre</string>
+    <string name="source_holdover">Baromètre en relais</string>
+    <string name="source_pressure">Baromètre non calé</string>
+    <string name="source_none">Pas de signal</string>
+
+    <string name="age_just_now">À l’instant</string>
+    <plurals name="age_minutes">
+        <item quantity="one">il y a %d minute</item>
+        <item quantity="many">il y a %d de minutes</item>
+        <item quantity="other">il y a %d minutes</item>
+    </plurals>
+    <plurals name="age_hours">
+        <item quantity="one">il y a %d heure</item>
+        <item quantity="many">il y a %d d’heures</item>
+        <item quantity="other">il y a %d heures</item>
+    </plurals>
+    <plurals name="age_days">
+        <item quantity="one">il y a %d jour</item>
+        <item quantity="many">il y a %d de jours</item>
+        <item quantity="other">il y a %d jours</item>
+    </plurals>
+
+    <string name="cd_altitude_waiting">En attente de l’altitude</string>
+    <string name="cd_altitude">Altitude %1$s</string>
+    <string name="cd_settings">Réglages</string>
+    <string name="cd_close_settings">Fermer les réglages</string>
+    <string name="cd_brightness_on">Désactiver la luminosité maximale</string>
+    <string name="cd_brightness_off">Luminosité maximale</string>
+    <string name="cd_unit_toggle">Unité : %1$s. Touchez deux fois le chiffre pour changer.</string>
+    <string name="cd_theme">Thème : %1$s</string>
+    <string name="cd_shutter">Déclencheur</string>
+    <string name="cd_switch_to_front">Passer à l’appareil photo avant</string>
+    <string name="cd_switch_to_back">Passer à l’appareil photo arrière</string>
+    <string name="cd_screen_flash_off">Activer le flash d’écran</string>
+    <string name="cd_screen_flash_on">Désactiver le flash d’écran</string>
+
+    <string name="settings_title">Réglages</string>
+    <string name="settings_section_units">Unités</string>
+    <string name="settings_section_theme">Thème de l’écran</string>
+    <string name="theme_night">Nuit</string>
+    <string name="theme_void">Noir</string>
+    <string name="theme_glacier">Glacier</string>
+    <string name="theme_saffron">Safran</string>
+    <string name="theme_snow">Neige</string>
+    <string name="settings_brightness_title">Luminosité maximale</string>
+    <string name="settings_brightness_subtitle">Pousse l’écran au maximum pour les photos</string>
+    <string name="settings_coordinates_title">Coordonnées</string>
+    <string name="settings_coordinates_subtitle">Affiche la latitude et la longitude sur l’écran</string>
+    <string name="settings_accuracy_title">Précision</string>
+    <string name="settings_accuracy_subtitle">Affiche l’erreur et l’origine de la mesure</string>
+    <string name="settings_clock_title">Heure</string>
+    <string name="settings_clock_subtitle">Affiche l’heure locale sur l’écran</string>
+    <string name="settings_place_title">Lieu</string>
+    <string name="settings_place_subtitle">L’affiche sur l’écran et le filigrane lorsqu’il peut être déterminé</string>
+    <string name="settings_dynamic_title">Couleurs du système</string>
+    <string name="settings_dynamic_subtitle">Colore seulement les commandes des réglages, pas l’écran ni le filigrane</string>
+    <string name="settings_watermark_note">Le filigrane indique toujours l’altitude, les coordonnées et l’heure. Vous pouvez masquer les coordonnées sur l’écran pour qu’une photo de celui-ci reste lisible.</string>
+    <string name="settings_about_version">À propos / Version %1$s</string>
+    <string name="toggle_on">Oui</string>
+    <string name="toggle_off">Non</string>
+
+    <string name="camera_permission_title">L’appareil photo est fermé</string>
+    <string name="camera_permission_body">L’écran d’altitude fonctionne sans lui. Pour inscrire la hauteur et les coordonnées dans une photo, autorisez l’appareil photo.</string>
+    <string name="camera_permission_action">Autoriser l’appareil photo</string>
+    <string name="zoom_ratio">%1$s×</string>
+    <string name="cd_zoom_preset">Régler le zoom sur %1$s</string>
+    <string name="cd_zoom_slider">Zoom</string>
+    <string name="cd_camera_preview">Aperçu. Pincez pour zoomer. Touchez pour faire la mise au point. Maintenez pour la verrouiller.</string>
+    <string name="cd_exposure">Correction d’exposition</string>
+    <string name="cd_focus_target">Point de mise au point</string>
+    <string name="focus_locked">Verrouillé</string>
+    <string name="watermark_light">Fond blanc</string>
+    <string name="watermark_dark">Fond noir</string>
+    <string name="watermark_mount">Cadre</string>
+    <string name="watermark_caption">Incrustation</string>
+    <string name="anchor_bottom">Bas</string>
+    <string name="anchor_top">Haut</string>
+    <string name="watermark_awaiting_fix">En attente du GPS</string>
+    <string name="save_success">Enregistrée dans Pictures/Altitude</string>
+    <string name="error_save_failed">L’enregistrement a échoué</string>
+    <string name="error_photo_compress">Impossible de compresser la photo</string>
+    <string name="error_photo_decode">Impossible de décoder la photo</string>
+    <string name="error_gallery_rejected">La galerie n’a pas accepté la photo</string>
+    <string name="error_gallery_write">Impossible d’écrire dans la galerie</string>
+    <string name="error_camera_open">Impossible d’ouvrir l’appareil photo</string>
+
+    <string name="prompt_location_approximate_title">Seule une position approximative est autorisée</string>
+    <string name="prompt_location_approximate_body">Une position approximative n’atteint pas les satellites. Autorisez la position précise pour que l’altitude se mette à jour.</string>
+    <string name="prompt_location_approximate_action">Autoriser la position précise</string>
+    <string name="prompt_gps_off_title">Le positionnement satellite est désactivé</string>
+    <string name="prompt_gps_off_body">La localisation est activée, mais le GPS est coupé. Activez le positionnement satellite pour obtenir l’altitude.</string>
+    <string name="prompt_gps_off_action">Ouvrir les réglages de localisation</string>
+
+    <string name="cd_last_photo">Dernière photo</string>
+    <string name="gallery_title">Photos</string>
+    <string name="gallery_empty">Pas encore de photo. Celles que vous prenez apparaissent ici.</string>
+    <string name="gallery_share">Partager</string>
+    <string name="gallery_delete">Supprimer</string>
+    <string name="gallery_open">Ouvrir dans la galerie</string>
+    <string name="gallery_close">Fermer</string>
+    <string name="gallery_delete_title">Supprimer cette photo ?</string>
+    <string name="gallery_delete_body">Elle sera retirée de Pictures/Altitude.</string>
+    <string name="gallery_delete_confirm">Supprimer</string>
+    <string name="gallery_delete_cancel">Annuler</string>
+    <string name="gallery_page">%1$d / %2$d</string>
+    <string name="cd_share_photo">Partager la photo</string>
+    <string name="cd_delete_photo">Supprimer la photo</string>
+    <string name="cd_open_gallery">Ouvrir dans la galerie du système</string>
+    <string name="cd_close_gallery">Fermer les photos</string>
+    <string name="error_share_failed">Impossible de partager la photo</string>
+    <string name="error_delete_failed">Impossible de supprimer la photo</string>
+    <string name="error_open_failed">Impossible d’ouvrir la photo</string>
+
+    <string name="format_altitude">%1$s %2$s</string>
+    <string name="format_accuracy">± %1$s %2$s</string>
+    <string name="format_accuracy_source">%1$s   %2$s</string>
+    <string name="format_coordinate">%1$s° %2$s</string>
+    <string name="format_coordinate_pair">%1$s   %2$s</string>
+    <string name="format_watermark_stamp">%1$s  %2$s</string>
+    <string name="hemisphere_n">N</string>
+    <string name="hemisphere_s">S</string>
+    <string name="hemisphere_e">E</string>
+    <string name="hemisphere_w">O</string>
+    <string name="pattern_watermark_date">dd.MM.yyyy</string>
+    <string name="pattern_watermark_time">HH:mm</string>
+    <string name="pattern_display_clock">HH:mm:ss</string>
+</resources>

@@ -13,6 +13,7 @@ import app.altitude.domain.WatermarkMetrics
 import app.altitude.domain.WatermarkStyle
 import app.altitude.ui.theme.AltitudeTypefaces
 import kotlin.math.max
+import kotlin.math.min
 
 private const val RED = 0xFFE10600.toInt()
 private const val LIGHT_BG = 0xFFFFFFFF.toInt()
@@ -26,6 +27,7 @@ object WatermarkRenderer {
         anchor: CaptionAnchor,
     ): Bitmap {
         val size = WatermarkMetrics.outputSize(photo.width, photo.height, style, content.place != null)
+        val metric = min(photo.width, photo.height).toFloat()
         val out = Bitmap.createBitmap(size.width, size.height, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(out)
         when (style) {
@@ -36,25 +38,32 @@ object WatermarkRenderer {
             WatermarkStyle.PLATE_LIGHT, WatermarkStyle.PLATE_DARK -> {
                 canvas.drawBitmap(photo, 0f, 0f, null)
                 val plate = RectF(0f, photo.height.toFloat(), photo.width.toFloat(), size.height.toFloat())
-                drawPlate(canvas, plate, content, dark = style == WatermarkStyle.PLATE_DARK)
+                drawPlate(canvas, plate, content, dark = style == WatermarkStyle.PLATE_DARK, metric = metric)
             }
             WatermarkStyle.MOUNT -> {
                 canvas.drawColor(LIGHT_BG)
-                val side = WatermarkMetrics.scaledPx(photo.width, WatermarkMetrics.MOUNT_SIDE_THOUSANDTHS).toFloat()
-                val top = WatermarkMetrics.scaledPx(photo.width, WatermarkMetrics.MOUNT_TOP_THOUSANDTHS).toFloat()
+                val reference = min(photo.width, photo.height)
+                val side = WatermarkMetrics.scaledPx(reference, WatermarkMetrics.MOUNT_SIDE_THOUSANDTHS).toFloat()
+                val top = WatermarkMetrics.scaledPx(reference, WatermarkMetrics.MOUNT_TOP_THOUSANDTHS).toFloat()
                 canvas.drawBitmap(photo, side, top, null)
                 val bottom = RectF(side, top + photo.height, size.width - side, size.height.toFloat())
-                drawBottomBand(canvas, bottom, photo.width.toFloat(), content, dark = false)
+                drawBottomBand(canvas, bottom, metric, content, dark = false)
             }
         }
         return out
     }
 
-    fun drawPlate(canvas: Canvas, rect: RectF, content: WatermarkContent, dark: Boolean) {
+    fun drawPlate(
+        canvas: Canvas,
+        rect: RectF,
+        content: WatermarkContent,
+        dark: Boolean,
+        metric: Float = rect.width(),
+    ) {
         val paint = Paint(Paint.ANTI_ALIAS_FLAG)
         paint.color = if (dark) DARK_BG else LIGHT_BG
         canvas.drawRect(rect, paint)
-        drawBottomBand(canvas, rect, rect.width(), content, dark)
+        drawBottomBand(canvas, rect, metric, content, dark)
     }
 
     fun drawCaption(
@@ -64,7 +73,8 @@ object WatermarkRenderer {
         content: WatermarkContent,
         anchor: CaptionAnchor,
     ) {
-        val band = height * 0.28f
+        val metric = min(width, height)
+        val band = 0.28f * max(width, height)
         val paint = Paint(Paint.ANTI_ALIAS_FLAG)
         val shader = if (anchor == CaptionAnchor.TOP) {
             LinearGradient(0f, 0f, 0f, band, 0xE6101010.toInt(), 0x00000000, Shader.TileMode.CLAMP)
@@ -76,8 +86,9 @@ object WatermarkRenderer {
         canvas.drawRect(0f, top, width, top + band, paint)
         val textTop = if (anchor == CaptionAnchor.TOP) height * 0.035f else height - band * 0.82f
         val textBottom = if (anchor == CaptionAnchor.TOP) band * 0.92f else height - height * 0.03f
-        val rect = RectF(width * 0.05f, textTop, width * 0.95f, textBottom)
-        drawSignature(canvas, rect, width, content, dark = true)
+        val inset = metric * 0.05f
+        val rect = RectF(inset, textTop, width - inset, textBottom)
+        drawSignature(canvas, rect, metric, content, dark = true)
     }
 
     private fun drawBottomBand(
@@ -117,7 +128,7 @@ object WatermarkRenderer {
         val leftWidth = rect.width() * 0.62f
         val rightWidth = rect.width() * 0.36f
 
-        val wordmark = "ALTITUDE"
+        val wordmark = content.wordmark
         paint.typeface = AltitudeTypefaces.mediumOrDefault()
         paint.letterSpacing = 0.2f
         paint.textSize = wordmarkSize
@@ -134,17 +145,21 @@ object WatermarkRenderer {
         }
         val altitudeHeight = paint.lineHeight()
 
-        val coordinate = content.coordinates ?: "等待定位"
-        val coordinateCjk = content.coordinates == null || coordinate.hasCjk()
-        paint.typeface = if (coordinateCjk) AltitudeTypefaces.cjk else AltitudeTypefaces.regularOrDefault()
-        paint.letterSpacing = if (coordinateCjk) 0f else 0.015f
+        val coordinate = content.coordinates?.takeIf { it.isNotBlank() }
+        val coordinateCjk = coordinate?.hasCjk() == true
         var coordinateSize = metaSize
-        paint.textSize = coordinateSize
-        while (paint.measureText(coordinate) > leftWidth && coordinateSize > metricWidth * 0.015f) {
-            coordinateSize *= 0.92f
+        val coordinateHeight = if (coordinate == null) {
+            0f
+        } else {
+            paint.typeface = if (coordinateCjk) AltitudeTypefaces.cjk else AltitudeTypefaces.regularOrDefault()
+            paint.letterSpacing = if (coordinateCjk) 0f else 0.015f
             paint.textSize = coordinateSize
+            while (paint.measureText(coordinate) > leftWidth && coordinateSize > metricWidth * 0.015f) {
+                coordinateSize *= 0.92f
+                paint.textSize = coordinateSize
+            }
+            paint.lineHeight()
         }
-        val coordinateHeight = paint.lineHeight()
 
         val place = content.place
         val placeHeight = if (place == null) {
@@ -175,7 +190,9 @@ object WatermarkRenderer {
             paint.lineHeight()
         }
 
-        val leftHeight = wordmarkHeight + gap + coordinateHeight + if (place != null) gap + placeHeight else 0f
+        val leftHeight = wordmarkHeight +
+            (if (coordinate != null) gap + coordinateHeight else 0f) +
+            (if (place != null) gap + placeHeight else 0f)
         val rightHeight = altitudeHeight + if (time != null) gap + timeHeight else 0f
         val block = max(leftHeight, rightHeight)
         val top = rect.top + (rect.height() - block) / 2f
@@ -198,12 +215,14 @@ object WatermarkRenderer {
             paint,
         )
 
-        paint.color = secondary
-        paint.typeface = if (coordinateCjk) AltitudeTypefaces.cjk else AltitudeTypefaces.regularOrDefault()
-        paint.letterSpacing = if (coordinateCjk) 0f else 0.015f
-        paint.textSize = coordinateSize
-        val coordinateTop = leftTop + wordmarkHeight + gap
-        canvas.drawText(coordinate, rect.left, coordinateTop + paint.baselineOffset(), paint)
+        val coordinateTop = leftTop + wordmarkHeight + (if (coordinate != null) gap else 0f)
+        if (coordinate != null) {
+            paint.color = secondary
+            paint.typeface = if (coordinateCjk) AltitudeTypefaces.cjk else AltitudeTypefaces.regularOrDefault()
+            paint.letterSpacing = if (coordinateCjk) 0f else 0.015f
+            paint.textSize = coordinateSize
+            canvas.drawText(coordinate, rect.left, coordinateTop + paint.baselineOffset(), paint)
+        }
 
         if (place != null) {
             paint.typeface = AltitudeTypefaces.cjk
@@ -239,6 +258,7 @@ class SignatureView(context: android.content.Context) : View(context) {
     var dark: Boolean = false
     var mode: SignatureMode = SignatureMode.PLATE
     var anchor: CaptionAnchor = CaptionAnchor.BOTTOM
+    var metricPx: Float = 0f
 
     init {
         setWillNotDraw(false)
@@ -248,8 +268,9 @@ class SignatureView(context: android.content.Context) : View(context) {
     override fun onDraw(canvas: Canvas) {
         val current = content ?: return
         val bounds = RectF(0f, 0f, width.toFloat(), height.toFloat())
+        val metric = if (metricPx > 0f) metricPx else min(bounds.width(), bounds.height())
         when (mode) {
-            SignatureMode.PLATE -> WatermarkRenderer.drawPlate(canvas, bounds, current, dark)
+            SignatureMode.PLATE -> WatermarkRenderer.drawPlate(canvas, bounds, current, dark, metric)
             SignatureMode.CAPTION -> WatermarkRenderer.drawCaption(canvas, bounds.width(), bounds.height(), current, anchor)
         }
     }

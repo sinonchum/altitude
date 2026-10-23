@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:locale="zh-rCN">
+    <string name="altitude_unavailable">— —</string>
+    <string name="altitude_placeholder">—</string>
+    <string name="caption_placeholder">\u00a0</string>
+
+    <string name="settings_language">语言</string>
+    <string name="language_system">跟随系统</string>
+
+    <string name="onboarding_display_kicker">亮屏</string>
+    <string name="onboarding_display_title">举到镜头前面</string>
+    <string name="onboarding_display_body">在山口、垭口、营地把屏幕亮着。海拔用大字停在画面中央，朋友用另一台手机拍你，数字依然清楚。</string>
+    <string name="onboarding_msl_kicker">海平面</string>
+    <string name="onboarding_msl_title">不是椭球高度</string>
+    <string name="onboarding_msl_body">卫星给出的是地球椭球上的高度。地图和路牌上的海拔相对海平面。手机会换算过来；有气压计时，读数更稳，反应也更快。不需要网络。</string>
+    <string name="onboarding_photo_kicker">成片</string>
+    <string name="onboarding_photo_title">写进照片，而不是贴在截图上</string>
+    <string name="onboarding_photo_body">拍照时，海拔、经纬度和时间按底栏水印画进成片，和取景时看到的是同一套排版，并写入照片的位置信息。相册目录是 Pictures/Altitude。</string>
+    <string name="onboarding_sample_caption">%1$s  ·  海平面</string>
+    <string name="onboarding_continue">继续</string>
+    <string name="onboarding_allow_location">允许定位</string>
+    <string name="onboarding_later">稍后</string>
+    <string name="onboarding_allow_camera">允许相机</string>
+    <string name="onboarding_display_only">先只用亮屏</string>
+    <string name="cd_onboarding_step">第 %1$d 步，共 %2$d 步</string>
+
+    <string name="unit_level_caption">%1$s  ·  海平面</string>
+    <string name="unit_pressure_caption">气压高度  ·  尚未用卫星校准</string>
+    <string name="unit_meters_name">米</string>
+    <string name="unit_feet_name">英尺</string>
+    <string name="unit_meters_symbol">米</string>
+    <string name="unit_feet_symbol">英尺</string>
+    <string name="mode_display">亮屏</string>
+    <string name="mode_camera">相机</string>
+
+    <string name="prompt_location_permission_title">还没有定位权限</string>
+    <string name="prompt_location_permission_body">海拔离不开卫星。授权之后，数字会开始跟着你走。</string>
+    <string name="prompt_location_permission_action">允许定位</string>
+    <string name="prompt_location_disabled_title">系统定位关着</string>
+    <string name="prompt_location_disabled_body">打开定位服务，卫星高度才会进来。</string>
+    <string name="prompt_location_disabled_action">去打开</string>
+
+    <string name="searching_satellites">正在寻找卫星</string>
+    <string name="preparing_geoid">正在准备海拔模型</string>
+    <string name="searching_hint">走到空旷处，把天空让给天线。第一颗星有时要一分钟。</string>
+    <string name="last_known">上次 %1$s · %2$s</string>
+
+    <string name="source_gps">卫星</string>
+    <string name="source_fused">卫星 + 气压</string>
+    <string name="source_holdover">气压延续</string>
+    <string name="source_pressure">气压未校准</string>
+    <string name="source_none">无信号</string>
+
+    <string name="age_just_now">刚刚</string>
+    <plurals name="age_minutes">
+        <item quantity="other">%d 分钟前</item>
+    </plurals>
+    <plurals name="age_hours">
+        <item quantity="other">%d 小时前</item>
+    </plurals>
+    <plurals name="age_days">
+        <item quantity="other">%d 天前</item>
+    </plurals>
+
+    <string name="cd_altitude_waiting">正在等待海拔</string>
+    <string name="cd_altitude">海拔 %1$s</string>
+    <string name="cd_settings">设置</string>
+    <string name="cd_close_settings">关闭设置</string>
+    <string name="cd_brightness_on">关闭最高亮度</string>
+    <string name="cd_brightness_off">最高亮度</string>
+    <string name="cd_unit_toggle">单位：%1$s。双击数字可切换。</string>
+    <string name="cd_theme">主题：%1$s</string>
+    <string name="cd_shutter">快门</string>
+    <string name="cd_switch_to_front">切换到前置摄像头</string>
+    <string name="cd_switch_to_back">切换到后置摄像头</string>
+    <string name="cd_screen_flash_off">打开屏幕闪光</string>
+    <string name="cd_screen_flash_on">关闭屏幕闪光</string>
+
+    <string name="settings_title">设置</string>
+    <string name="settings_section_units">单位</string>
+    <string name="settings_section_theme">亮屏主题</string>
+    <string name="theme_night">夜色</string>
+    <string name="theme_void">纯黑</string>
+    <string name="theme_glacier">冰川</string>
+    <string name="theme_saffron">暖金</string>
+    <string name="theme_snow">雪地</string>
+    <string name="settings_brightness_title">最高亮度</string>
+    <string name="settings_brightness_subtitle">拍照时把屏幕拉到最亮</string>
+    <string name="settings_coordinates_title">坐标</string>
+    <string name="settings_coordinates_subtitle">亮屏时显示经纬度</string>
+    <string name="settings_accuracy_title">精度</string>
+    <string name="settings_accuracy_subtitle">亮屏时显示误差和信号来源</string>
+    <string name="settings_clock_title">时间</string>
+    <string name="settings_clock_subtitle">亮屏时显示当地时间</string>
+    <string name="settings_place_title">地名</string>
+    <string name="settings_place_subtitle">能解析到时显示在亮屏和水印上</string>
+    <string name="settings_dynamic_title">界面跟随系统配色</string>
+    <string name="settings_dynamic_subtitle">只给设置里的按钮上色，不改亮屏和水印</string>
+    <string name="settings_watermark_note">水印始终带上海拔、经纬度和时间。亮屏上的坐标可以单独关掉，避免拍屏幕时太满。</string>
+    <string name="settings_about_version">关于 / 版本 %1$s</string>
+    <string name="toggle_on">开</string>
+    <string name="toggle_off">关</string>
+
+    <string name="camera_permission_title">相机还没打开</string>
+    <string name="camera_permission_body">亮屏海拔可以照常用。要把高度和经纬度写进照片，需要相机权限。</string>
+    <string name="camera_permission_action">允许相机</string>
+    <string name="zoom_ratio">%1$s×</string>
+    <string name="cd_zoom_preset">变焦到 %1$s</string>
+    <string name="cd_zoom_slider">变焦</string>
+    <string name="cd_camera_preview">取景画面。双指缩放，点按对焦，长按锁定对焦。</string>
+    <string name="cd_exposure">曝光补偿</string>
+    <string name="cd_focus_target">对焦点</string>
+    <string name="focus_locked">已锁定</string>
+    <string name="watermark_light">白底</string>
+    <string name="watermark_dark">黑底</string>
+    <string name="watermark_mount">画框</string>
+    <string name="watermark_caption">浮印</string>
+    <string name="anchor_bottom">底部</string>
+    <string name="anchor_top">顶部</string>
+    <string name="watermark_awaiting_fix">等待定位</string>
+    <string name="save_success">已保存到相册 · Pictures/Altitude</string>
+    <string name="error_save_failed">没有保存成功</string>
+    <string name="error_photo_compress">照片压缩失败</string>
+    <string name="error_photo_decode">无法解码照片</string>
+    <string name="error_gallery_rejected">相册没有收下这张照片</string>
+    <string name="error_gallery_write">无法写入相册</string>
+    <string name="error_camera_open">相机打开失败</string>
+
+    <string name="prompt_location_approximate_title">只有模糊位置</string>
+    <string name="prompt_location_approximate_body">模糊位置到不了卫星。请改为精确位置，海拔才会更新。</string>
+    <string name="prompt_location_approximate_action">允许精确位置</string>
+    <string name="prompt_gps_off_title">卫星定位没开</string>
+    <string name="prompt_gps_off_body">系统定位开着，但 GPS 关着。打开卫星定位，高度才会进来。</string>
+    <string name="prompt_gps_off_action">去打开</string>
+
+    <string name="cd_last_photo">上一张照片</string>
+    <string name="gallery_title">照片</string>
+    <string name="gallery_empty">还没有照片。拍下的会出现在这里。</string>
+    <string name="gallery_share">分享</string>
+    <string name="gallery_delete">删除</string>
+    <string name="gallery_open">在系统相册中打开</string>
+    <string name="gallery_close">关闭</string>
+    <string name="gallery_delete_title">删除这张照片？</string>
+    <string name="gallery_delete_body">它会从 Pictures/Altitude 中移除。</string>
+    <string name="gallery_delete_confirm">删除</string>
+    <string name="gallery_delete_cancel">取消</string>
+    <string name="gallery_page">%1$d / %2$d</string>
+    <string name="cd_share_photo">分享照片</string>
+    <string name="cd_delete_photo">删除照片</string>
+    <string name="cd_open_gallery">在系统相册中查看</string>
+    <string name="cd_close_gallery">关闭照片</string>
+    <string name="error_share_failed">无法分享这张照片</string>
+    <string name="error_delete_failed">无法删除这张照片</string>
+    <string name="error_open_failed">无法打开这张照片</string>
+
+    <string name="format_altitude">%1$s %2$s</string>
+    <string name="format_accuracy">± %1$s %2$s</string>
+    <string name="format_accuracy_source">%1$s   %2$s</string>
+    <string name="format_coordinate">%1$s° %2$s</string>
+    <string name="format_coordinate_pair">%1$s   %2$s</string>
+    <string name="format_watermark_stamp">%1$s  %2$s</string>
+    <string name="hemisphere_n">北</string>
+    <string name="hemisphere_s">南</string>
+    <string name="hemisphere_e">东</string>
+    <string name="hemisphere_w">西</string>
+    <string name="pattern_watermark_date">yyyy.MM.dd</string>
+    <string name="pattern_watermark_time">HH:mm</string>
+    <string name="pattern_display_clock">HH:mm:ss</string>
+</resources>

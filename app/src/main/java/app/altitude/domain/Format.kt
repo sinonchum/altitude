@@ -1,5 +1,9 @@
 package app.altitude.domain
 
+import java.math.RoundingMode
+import java.text.DecimalFormat
+import java.text.DecimalFormatSymbols
+import java.text.NumberFormat
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -23,14 +27,36 @@ fun groupThousands(value: Long): String {
     return sign + grouped
 }
 
-fun formatAltitudeNumber(meters: Double, unit: AltitudeUnit): String {
-    val value = if (unit == AltitudeUnit.FEET) metersToFeet(meters) else meters
-    return groupThousands(value.roundToLong())
+fun formatInteger(value: Long, locale: Locale): String {
+    val format = NumberFormat.getIntegerInstance(locale)
+    format.isGroupingUsed = true
+    format.roundingMode = RoundingMode.HALF_UP
+    return format.format(value)
 }
 
-fun formatAltitudeReading(meters: Double, unit: AltitudeUnit): String {
+fun formatDecimal(value: Double, fractionDigits: Int, locale: Locale): String {
+    val symbols = DecimalFormatSymbols.getInstance(locale)
+    val pattern = buildString {
+        append('0')
+        if (fractionDigits > 0) {
+            append('.')
+            repeat(fractionDigits) { append('0') }
+        }
+    }
+    val format = DecimalFormat(pattern, symbols)
+    format.isGroupingUsed = false
+    format.roundingMode = RoundingMode.HALF_UP
+    return format.format(value)
+}
+
+fun formatAltitudeNumber(meters: Double, unit: AltitudeUnit, locale: Locale = Locale.US): String {
+    val value = if (unit == AltitudeUnit.FEET) metersToFeet(meters) else meters
+    return formatInteger(value.roundToLong(), locale)
+}
+
+fun formatAltitudeReading(meters: Double, unit: AltitudeUnit, locale: Locale = Locale.US): String {
     val suffix = if (unit == AltitudeUnit.FEET) "ft" else "m"
-    return "${formatAltitudeNumber(meters, unit)} $suffix"
+    return "${formatAltitudeNumber(meters, unit, locale)} $suffix"
 }
 
 fun formatAccuracy(meters: Double, unit: AltitudeUnit): String {
