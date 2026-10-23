@@ -50,7 +50,7 @@ struct CameraScreen: View {
                             .padding(.top, 8)
                     }
                 }
-                .ignoresSafeArea(edges: landscape ? .vertical : [])
+                .ignoresSafeArea(edges: landscape ? .all : [])
             }
         }
         .onAppear(perform: configure)
