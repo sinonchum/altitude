@@ -557,20 +557,32 @@ internal fun ModeSwitch(
     secondary: androidx.compose.ui.graphics.Color,
     background: androidx.compose.ui.graphics.Color,
     onMode: (AppMode) -> Unit,
+    vertical: Boolean = false,
 ) {
-    Row(
-        modifier = Modifier
-            .clip(RoundedCornerShape(999.dp))
-            .background(background)
-            .padding(4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
+    val chips: @Composable () -> Unit = {
         SwitchChip(stringResource(R.string.mode_display), mode == AppMode.DISPLAY, primary, secondary) {
             onMode(AppMode.DISPLAY)
         }
         SwitchChip(stringResource(R.string.mode_camera), mode == AppMode.CAMERA, primary, secondary) {
             onMode(AppMode.CAMERA)
         }
+    }
+    if (vertical) {
+        Column(
+            modifier = Modifier
+                .clip(RoundedCornerShape(20.dp))
+                .background(background)
+                .padding(4.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) { chips() }
+    } else {
+        Row(
+            modifier = Modifier
+                .clip(RoundedCornerShape(999.dp))
+                .background(background)
+                .padding(4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) { chips() }
     }
 }
 
