@@ -191,14 +191,14 @@ Test: `PhotoImportTests` ports `PhotoExifTest` and `PhotoAltitudeTest`, includin
 
 Acceptance:
 
-- [ ] EXIF wall clock stays `2024-06-15 14:30` with offset `+08:00`. GPS-only time shifts into the recorded offset. Blank dates and unsigned offsets are rejected.
-- [ ] `GPSAltitudeRef` 1 is negative. Zero and negative EXIF altitudes win over a lookup. A lookup runs only when coordinates exist and EXIF altitude is missing. No coordinates means no invented number.
-- [ ] Open-Meteo URL and cache key match Android (`29.65218` / `91.11700`, cache `29.6522,91.1170`). A null elevation entry stays nil.
-- [ ] A full-quality JPEG keeps GPS. Limited access keeps `PHAsset.location` for a picked asset, and that location fills a stripped file. Neither source, with no readable asset, is the dropped-location notice in Chinese, English, and French.
-- [ ] Computed altitude is drawn with `≈`. Missing altitude and missing coordinates are omitted from the saved image, including the dash placeholder.
-- [ ] Plate and mount can sit on top. The import preview shows styles and the top/bottom control. Portrait and landscape photos are upright.
-- [ ] Import screenshots exist for the entry, portrait photo, landscape photo, no GPS, and computed altitude, in both device orientations, with the notice inside the window in English, Chinese, and French.
-- [ ] Settings shows `1.1.0 (2)`. New strings exist in `en`, `zh-Hans`, and `fr` with matching format specifiers.
+- [x] EXIF wall clock stays `2024-06-15 14:30` with offset `+08:00`. GPS-only time shifts into the recorded offset. Blank dates and unsigned offsets are rejected.
+- [x] `GPSAltitudeRef` 1 is negative. Zero and negative EXIF altitudes win over a lookup. A lookup runs only when coordinates exist and EXIF altitude is missing. No coordinates means no invented number.
+- [x] Open-Meteo URL and cache key match Android (`29.65218` / `91.11700`, cache `29.6522,91.1170`). A null elevation entry stays nil.
+- [x] A full-quality JPEG keeps GPS. Limited access keeps `PHAsset.location` for a picked asset, and that location fills a stripped file. Neither source, with no readable asset, is the dropped-location notice in Chinese, English, and French.
+- [x] Computed altitude is drawn with `≈`. Missing altitude and missing coordinates are omitted from the saved image, including the dash placeholder.
+- [x] Plate and mount can sit on top. The import preview shows styles and the top/bottom control. Portrait and landscape photos are upright.
+- [x] Import screenshots exist for the entry, portrait photo, landscape photo, no GPS, and computed altitude, in both device orientations, with the notice inside the window in English, Chinese, and French.
+- [x] Settings shows `1.1.0 (2)`. New strings exist in `en`, `zh-Hans`, and `fr` with matching format specifiers.
 
 ## Parallelism
 
@@ -211,7 +211,7 @@ Acceptance:
 
 ## Checklist
 
-Status values: `pass` only after a green macOS workflow. Evidence: [run 39942210594](https://github.com/sinonchum/altitude/actions/runs/39942210594) on iPhone 17 Pro (Xcode 26.6, iOS 26.5). 63 unit tests passed, including the ported Nominatim payloads, catalog parity, and the watermark JPEG size plus GPS and TIFF software tags. The landscape preview fraction passed. Artifacts: `ios-screenshots`, `ios-unsigned-build`, `ios-xcresult`. Review of those screenshots shows the iOS “full access to your Photo Library” alert covering `camera-portrait-back`, `camera-landscape-back`, and `settings-zh`, so A4 and A5 are pending again. A later green run has to show those screens with no system alert. GitHub Actions is blocked on account billing, so B0–B8 stay pending until that run exists.
+Status values: `pass` only after a green macOS workflow. Evidence: [run 39980512300](https://github.com/sinonchum/altitude/actions/runs/39980512300) (Xcode 26.6). 92 unit tests passed, including EXIF clock and signed altitude, Open-Meteo parsing, the asset-location merge, the JPEG round trip, catalog parity, and the blank-altitude plate check. 23 UI screenshot tests passed, including the landscape preview fraction and a failure if a system alert is visible. Artifacts: `ios-screenshots`, `ios-unsigned-build`, `ios-xcresult`. The screenshots for display, settings in Chinese, English, and French, camera portrait and landscape for back and front, and the import flow in those three languages show the app, with no photo-library alert. [Run 39942210594](https://github.com/sinonchum/altitude/actions/runs/39942210594) had that alert on `camera-portrait-back`, `camera-landscape-back`, and `settings-zh`; this run does not.
 
 | ID | Criterion | Status |
 | --- | --- | --- |
@@ -219,19 +219,19 @@ Status values: `pass` only after a green macOS workflow. Evidence: [run 39942210
 | A1 | Domain XCTest suite passes on the iPhone simulator | pass |
 | A2 | String catalog parity test passes | pass |
 | A3 | Watermark JPEG size and GPS metadata test passes | pass |
-| A4 | Display and trilingual settings screenshots are produced with no system alert | pending |
-| A5 | Portrait and landscape, back and front, camera screenshots are produced with no system alert | pending |
+| A4 | Display and trilingual settings screenshots are produced with no system alert | pass |
+| A5 | Portrait and landscape, back and front, camera screenshots are produced with no system alert | pass |
 | A6 | Landscape UI test checks the preview fraction | pass |
 | A7 | Unsigned build artifact is uploaded | pass |
 | A8 | Workflow run is green | pass |
-| B0 | PRD and this plan describe import-from-metadata, including picker, ImageIO, and PHAsset location | pending |
-| B1 | EXIF clock, signed altitude, and value-selection tests pass | pending |
-| B2 | Open-Meteo parse, URL, and cache-key tests pass | pending |
-| B3 | Asset-identifier location merge and JPEG metadata round trip pass | pending |
-| B4 | Blank altitude is omitted and top plate/mount layout is covered by a unit test | pending |
-| B5 | Import entry and preview screenshots exist in both device orientations | pending |
-| B6 | No-GPS notice is inside the window in English, Chinese, and French | pending |
-| B7 | Settings shows 1.1.0 (2) and the new strings pass the catalog parity test | pending |
-| B8 | Workflow run for this milestone is green | pending |
+| B0 | PRD and this plan describe import-from-metadata, including picker, ImageIO, and PHAsset location | pass |
+| B1 | EXIF clock, signed altitude, and value-selection tests pass | pass |
+| B2 | Open-Meteo parse, URL, and cache-key tests pass | pass |
+| B3 | Asset-identifier location merge and JPEG metadata round trip pass | pass |
+| B4 | Blank altitude is omitted and top plate/mount layout is covered by a unit test | pass |
+| B5 | Import entry and preview screenshots exist in both device orientations | pass |
+| B6 | No-GPS notice is inside the window in English, Chinese, and French | pass |
+| B7 | Settings shows 1.1.0 (2) and the new strings pass the catalog parity test | pass |
+| B8 | Workflow run for this milestone is green | pass |
 
-Version shown in Settings: **1.1.0 (2)**. Rows A4 and A5 are pending until a green run produces those screenshots with no system alert on top. Rows A0–A3 and A6–A8 stay pass from [run 39942210594](https://github.com/sinonchum/altitude/actions/runs/39942210594). Rows B0–B8 stay pending until a green macOS run covers them.
+Version shown in Settings: **1.1.0 (2)**. Rows A0–A8 and B0–B8 pass on [run 39980512300](https://github.com/sinonchum/altitude/actions/runs/39980512300).
